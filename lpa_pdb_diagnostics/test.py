@@ -1,13 +1,52 @@
 import numpy as np
-from particles import *
-from fields import FieldInstant
-from particle_tracking import ParticleTracking
-from file_handling import FileWriting, FileReading
-import os
-import h5py
 import pylab as plt
+from lpa_pdb_diagnostics import *
+from scipy.constants import e, c, m_e, epsilon_0
 
+## Getting the path
 dir_path = "//Volumes/Orsay/circ_a01.1_foc1.9mm_400um_dens7.8_nzplambda50/data/"
+
+# Some definitions of the laser plasma parameters
+lambda0 = 0.8e-6
+w0 = 2*np.pi*c/lambda0
+laser_waist = 17e-6
+plasma_dens = 7.8e24
+plasma_length = 3e-3
+wp = np.sqrt(plasma_dens * e**2/ (epsilon_0 * m_e))
+lambda_plasma = 2*np.pi*c/wp
+
+#Numerical Parameters
+zmin = -8*lambda_plasma
+zmax = 2*lambda0
+nzplambda = 20
+w_size = zmax - zmin
+Nz = int(w_size*nzplambda/lambda0)
+dz = w_size/Nz
+
+# Generating values for file reading
+inf = 0
+sup = 0
+period_int = 1000
+period_ext = 1000
+
+val = values( inf, sup, period_int, period_ext, plasma_length/dz )
+
+field = np.empty(len(val)).astype(str)
+N5 = np.empty(len(val)).astype(str)
+N6 = np.empty(len(val)).astype(str)
+N7 = np.empty(len(val)).astype(str)
+
+# Initialize file names
+for i, v in enumerate(val):
+    field[ i ] = dir+"fields%06d.pdb" %v
+    N5[ i ] = dir+"N5%06d.pdb" %v
+    N6[ i ] = dir+"N6%06d.pdb" %v
+    N7[ i ] = dir+"N7%06d.pdb" %v
+    H[ i ] = dir+"H%06d.pdb" %v
+
+longitudinal_position = val*dz
+
+#
 
 file_data = dir_path + "fields111000.pdb"
 file_N6 = dir_path + "N6111000.pdb"

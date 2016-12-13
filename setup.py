@@ -1,11 +1,11 @@
 from setuptools import setup
 
 setup(
-    name='warp_pdb_diagnostics',
+    name='lpa_pdb_diagnostics',
     author='Patrick lee',
     author_email='patrick.lee@u-psud.fr',
-    packages=['warp_diagnostics'],
+    packages=['lpa_pdb_diagnostics'],
     description='Warp diagnostics tools for pdb data',
     platforms='Linux, MacOSX',
-    url='git@bitbucket.org:remilehe/warp-initialization-tools.git'
+    url='github.com/kcirtap2014/LPA_PDB_diagnostics.git'
 )

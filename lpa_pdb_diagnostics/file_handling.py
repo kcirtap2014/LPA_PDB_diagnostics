@@ -10,7 +10,7 @@ class FileWriting():
     """
     def __init__( self, dname, file_name, groups = None ):
         """
-        Initialize the FileHandling
+        Initialize the FileHandling object
 
         Parameters:
         -----------
@@ -90,23 +90,28 @@ class FileWriting():
         if self.groups!=None:
             for indexg in xrange(len(self.groups)):
                 for indexq, quantity in enumerate(self.dname):
-                    dset = self.group_object[indexg].require_dataset(quantity, size, dtype = float)
-                    if attrs is not None:
-                        dset.attrs[dset.name] = attrs[indexq]
                     #print "size of dset", dset
                     #print "size of data", np.shape(data[indexg][indexq][:])
                     #print "current dset size", np.shape(dset[dset_index_start:dset_index_stop])
                     if (dset_index_start is not None) and (dset_index_stop is not None):
+                        dset = self.group_object[indexg].require_dataset(quantity,
+                                size, dtype = float)
                         dset[dset_index_start:dset_index_stop] = data[indexg][indexq][:]
+
                     else:
+                        dset = self.group_object[indexg].require_dataset(quantity,
+                                np.shape(data[indexg][indexq]), dtype = float)
                         dset[:] = data[indexg][indexq][:]
+
+                    if attrs is not None and dset_index_start == 0:
+                        dset.attrs["units"] = attrs[indexq]
         else:
             for indexq, quantity in enumerate(self.dname):
                 dset = self.file_object.require_dataset( quantity,
                             np.shape(data[indexq]), dtype = float)
 
                 if attrs is not None:
-                    dset.attrs[quantity] = attrs[indexq]
+                    dset.attrs["units"] = attrs[indexq]
 
                 dset[:] = data[indexq]
 

@@ -16,7 +16,8 @@ Then pass the method diag.write to installafterstep :
     installafterstep( diag2.write )
 """
 
-from particles import *
-from fields import *
-from file_handling import *
-from particle_tracking import ParticleTracking
+from .particles import *
+from .fields import *
+from .file_handling import *
+from .generics import *
+from .particle_tracking import ParticleTracking

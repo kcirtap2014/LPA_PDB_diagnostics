@@ -1,4 +1,4 @@
-import warp.data_dumping.PRpickle as PR
+import cPickle as pickle
 import numpy as np
 import math
 import sys
@@ -11,12 +11,15 @@ from file_handling import FileWriting
 try:
     import pandas as pd
 except ImportError:
-    print "If you wish to use pandas to manipulate your data, please install the module follwing the instruction on this website http://pandas.pydata.org/pandas-docs/stable/install.html"
+    print "If you wish to use pandas to manipulate your data,\
+    please install the module follwing the instruction on this \
+    website http://pandas.pydata.org/pandas-docs/stable/install.html"
     pass
 
 class ParticleInstant():
 
-    def __init__(self, file, quantities = ["PID", "Weight", "Position", "Momentum", "E", "B"]):
+    def __init__(self, filename,
+            quantities = ["PID", "Weight", "Position", "Momentum", "E", "B"]):
         """
         Initialize an instant of particles.
 
@@ -30,9 +33,10 @@ class ParticleInstant():
 
         """
 
-        print "** Processing ** Particles: Initialisation of "+str(file)+" **"
+        print "** Processing ** Particles: Initialisation of "+str(filename)+" **"
 
-        tmp = PR.PR(file)
+        with open( filename ) as pickle_file:
+            tmp = pickle.load( pickle_file )
 
         self.quantities = quantities
         self.num_quantities = 0
@@ -44,7 +48,7 @@ class ParticleInstant():
 
         for quantity in self.quantities:
             if quantity == "PID":
-                self.ssn = np.array(tmp.ssnum).astype(int)
+                self.ssn = np.array(tmp["ssnum"]).astype(int)
                 self.qdict["PID"] = self.num_quantities
                 self.num_quantities += 1
                 if self.pandas:
@@ -52,7 +56,7 @@ class ParticleInstant():
                     frame.append(PID)
 
             if quantity == "Weight":
-                self.w = np.array(tmp.w)
+                self.w = np.array(tmp["w"])
                 self.qdict["w"] = self.num_quantities
                 self.num_quantities += 1
                 if self.pandas:
@@ -60,9 +64,9 @@ class ParticleInstant():
                     frame.append(w)
 
             if quantity == "Position":
-                self.x = np.array(tmp.x)
-                self.y = np.array(tmp.y)
-                self.z = np.array(tmp.z)
+                self.x = np.array(tmp["x"])
+                self.y = np.array(tmp["y"])
+                self.z = np.array(tmp["z"])
 
                 self.qdict["x"] = self.num_quantities
                 self.qdict["y"] = self.num_quantities + 1
@@ -76,9 +80,9 @@ class ParticleInstant():
                     frame.append(pos)
 
             if quantity == "Momentum":
-                self.ux = np.array(tmp.ux)
-                self.uy = np.array(tmp.uy)
-                self.uz = np.array(tmp.uz)
+                self.ux = np.array(tmp["ux"])
+                self.uy = np.array(tmp["uy"])
+                self.uz = np.array(tmp["uz"])
                 self.gamma = np.sqrt(1. + self.ux**2 + self.uy**2 + self.uz**2)
 
                 self.qdict["ux"] = self.num_quantities
@@ -95,9 +99,9 @@ class ParticleInstant():
                     frame.append(momentum)
 
             if quantity == "E":
-                self.ex = np.array(tmp.ex)
-                self.ey = np.array(tmp.ey)
-                self.ez = np.array(tmp.ez)
+                self.ex = np.array(tmp["ex"])
+                self.ey = np.array(tmp["ey"])
+                self.ez = np.array(tmp["ez"])
 
                 self.qdict["ex"] = self.num_quantities
                 self.qdict["ey"] = self.num_quantities + 1
@@ -111,9 +115,9 @@ class ParticleInstant():
                     frame.append(Efield)
 
             if quantity == "B":
-                self.bx = np.array(tmp.bx)
-                self.by = np.array(tmp.by)
-                self.bz = np.array(tmp.bz)
+                self.bx = np.array(tmp["bx"])
+                self.by = np.array(tmp["by"])
+                self.bz = np.array(tmp["bz"])
 
                 self.qdict["bx"] = self.num_quantities
                 self.qdict["by"] = self.num_quantities + 1
@@ -262,7 +266,7 @@ class ParticleInstant():
                 chosenParticles[index - 1] = self.by[indexList]
                 chosenParticles[index] = self.bz[indexList]
 
-        return chosenParticles
+        return chosenParticles, self.qdict
 
 def beam_charge( w, *args ):
     """
@@ -284,23 +288,26 @@ def beam_charge( w, *args ):
 
     return charge
 
-def beam_spectrum( gamma, w, lwrite = False, bin_size = 0.5, density = False):
+def beam_spectrum( gamma, w, lwrite = False,
+                    bin_size = 0.5, density = False ):
     """
     Returns the beam spectrum of the chosen particles.
 
     Parameters:
     -----------
-    gamma: 1D numpy array
-        gamma of particles
+    gamma: 2D numpy array
+        gamma of particles for different species
 
-    w: 1D numpy array
-        Weight of particles
+    w: 2D numpy array
+        Weight of particles for different species
 
     bin_size: int
-        in MeV, default value 2 MeV
+        in MeV, default value 0.5 MeV
 
     density: boolean
         whether to normalize the spectrum, default value False
+
+    species_combine:
 
     Returns:
     --------
@@ -310,19 +317,39 @@ def beam_spectrum( gamma, w, lwrite = False, bin_size = 0.5, density = False):
     dQdE: float value
         charge in Coulomb/MeV
     """
-    energy = gamma2Energy(gamma)
 
-    bins = int((np.max(energy) - np.min(energy))/bin_size)
-    dQdE, energy = np.histogram( energy, bins = bins,
-                    weights = w , density = density)
-    dQdE *= e
+    num_species = len(gamma)
+    energy = []
+    dQdE = []
 
-    energy = np.delete( energy, 0 ) # removing the first element
+    for index in xrange(num_species):
+        en = gamma2Energy(gamma[index])
+        bins = int((np.max(en) - np.min(en))/bin_size)
+        temp_dQdE, temp_energy = np.histogram( en, bins = bins,
+                    weights = w[index] , density = density)
+        temp_dQdE *= e
+        temp_energy = np.delete( temp_energy, 0 ) # removing the first element
+        dQdE.append(temp_dQdE)
+        energy.append(temp_energy)
+
+    index_largest_dynamics = np.argmax( map(lambda x: np.max(x) - np.min(x),
+                             energy))
+    ref_energy = energy[index_largest_dynamics]
+
+    dQdE_interp = []
+
+    for index in xrange(num_species):
+        dQdE_interp.append(np.interp(ref_energy, energy[index], dQdE[index]))
+
+    #this is to store the contribution of all species to the spectrum
+    dQdE.append(np.sum( dQdE_interp[0:num_species], axis = 0 ))
+    energy.append(ref_energy)
 
     if lwrite:
+        gname = np.arange(num_species + 1).astype('str')
         qname = ["energy", "dQdE"]
-        f = FileWriting( qname , "BeamSpectrum" )
-        stacked_data = np.stack( (energy, dQdE), axis = 0 )
+        f = FileWriting( qname , "BeamSpectrum" , groups = gname)
+        stacked_data = np.stack( (energy, dQdE), axis = 1 )
         f.write( stacked_data, np.shape(stacked_data) , attrs = [ "MeV", "C" ])
 
     return energy, dQdE
@@ -508,5 +535,5 @@ def charge_density(x, ux, w):
     H, xedges, yedges = np.histogram2d(ux, x, bins = bin_num, weights = charge)
     Hmasked = np.ma.masked_where(H == 0,H)
     extent = [ min(x), max(x), min(ux), max(ux) ]
-    
+
     return Hmasked, extent

@@ -3,6 +3,83 @@ from scipy.constants import e, c, m_e
 import math
 import numpy as np
 
+def quant_concatenate ( array_obj_quant , keep_object_name = False ):
+
+    """
+    returns a concatenation of object quantities. Typically used before
+    beam analysis  to take into account all particles regardless of their
+    species.
+
+    Paramters:
+    ----------
+    array_obj_quant: ndarray
+        an array of objects
+
+    keep_object_name: boolean
+        either to keep the origin of the partlcles or not
+
+    Returns:
+    --------
+    c_object: ndarray
+        concatenated object quantities
+    """
+    if keep_object_name:
+
+    else:
+        c_object = [[] for i in xrange(np.shape(array_obj_quant)[1])]
+        #Loop in quantities
+        for iquant in xrange(np.shape(array_obj_quant)[1]):
+            temp = []
+            #Loop in number of species
+            for index, obj in enumerate(array_obj_quant):
+                temp += obj[index][iquant]
+
+            c_object[iquant] = temp
+
+    return c_object
+
+def values ( inf, sup, period_int, period_ext, Lpdz ):
+    """
+    returns an array of values needed to generate the file name.
+
+    Parameters:
+    -----------
+    inf : float
+        inferior boundary in terms of longitudinal coordinates
+
+    sup : float
+        superior boundary in terms of longitudinal coordinates
+
+    period_int: int
+        the period of data dumping between the interior and the superior
+        boundary
+
+    period_ext: int
+        the period of data dumping outside the interior and the superior
+        boundary
+
+    Lpdz: float
+        Length of plasma/ dz
+
+    Returns:
+    --------
+    val: 1D numpy array
+        an array of values corresponding to the data dumping period
+    """
+
+    distance = 0
+    val = []
+
+    while (distance < Lpdz):
+        if (distance < inf or distance >= sup):
+            period = period_int
+        else:
+            period = period_ext
+        val.append( distance + period )
+        distance += period
+
+    return ( val )
+
 def gamma2Energy (gamma):
     """
     Returns energy
@@ -164,10 +241,10 @@ def findRoot( y, x ):
 
     # insert a z value at the first index
     if lrz == 1:
-        roots.insert(0,min(z))
+        roots.insert( 0, min(x) )
     # if length of root is not pair, we remove the first value
     if np.shape(roots)[0]%2 != 0:
-        roots = np.delete( roots,0 )
+        roots = np.delete( roots, 0 )
 
     return roots
 

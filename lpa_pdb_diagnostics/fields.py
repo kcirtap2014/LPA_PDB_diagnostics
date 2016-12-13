@@ -1,7 +1,7 @@
-import warp.data_dumping.PRpickle as PR
+import cPickle as pickle
 import numpy as np
 import sys
-from scipy.constants import e, c
+from scipy.constants import e, c, m_e
 from scipy.signal import find_peaks_cwt
 import pdb
 from generics import findRoot, savitzkyGolay, wstd
@@ -26,19 +26,19 @@ class FieldInstant():
         """
 
         print "** Processing ** Fields: Intialisation of "+str(filename)+" **"
-        self.filename = filename
+
         self.quantities = quantities
-        tmf = PR.PR(self.filename)
+        with open( filename ) as pickle_file:
+            tmf = pickle.load( pickle_file )
 
         if "pandas" in sys.modules.keys():
             self.pandas = False
             frame = []
-
         for quantity in self.quantities:
             if quantity == "E":
-                self.ex = np.array(tmf.ex)
-                self.ey = np.array(tmf.ey)
-                self.ez = np.array(tmf.ez)
+                self.ex = np.array(tmf["ex"])
+                self.ey = np.array(tmf["ey"])
+                self.ez = np.array(tmf["ez"])
 
                 if self.pandas:
                     ##Problem: arrays are in 2D can't be read by pandas
@@ -48,16 +48,16 @@ class FieldInstant():
                     frame.append( efields )
 
             if quantity == "zfield":
-                self.zfield = np.array(tmf.z[:-1])
+                self.zfield = np.array(tmf["z"][:-1])
 
                 if self.pandas:
                     zfield = pd.DataFrame({"z": self.zfield})
                     frame.append( zfield )
 
             if quantity == "B":
-                self.bx = np.array(tmf.bx)
-                self.by = np.array(tmf.by)
-                self.bz = np.array(tmf.bz)
+                self.bx = np.array(tmf["bx"])
+                self.by = np.array(tmf["by"])
+                self.bz = np.array(tmf["bz"])
 
                 if self.pandas:
                     bfields = pd.DataFrame({"bx": self.bx,
@@ -66,28 +66,28 @@ class FieldInstant():
                     frame.append( bfields )
 
             if quantity == "densH":
-                self.dens = np.array(tmf.dens)
+                self.dens = np.array(tmf["dens"])
 
                 if self.pandas:
                     densH = pd.DataFrame({"densH": self.densH})
                     frame.append( densH )
 
             if quantity == "densN5":
-                self.densN5 = np.array(tmf.dens5)
+                self.densN5 = np.array(tmf["dens5"])
 
                 if self.pandas:
                     densN5 = pd.DataFrame({"densN5": self.densN5})
                     frame.append( densN5 )
 
             if quantity == "densN6":
-                self.densN6 = np.array(tmf.dens6)
+                self.densN6 = np.array(tmf["dens6"])
 
                 if self.pandas:
                     densN6 = pd.DataFrame({"densN6": self.densN6})
                     frame.append( densN6 )
 
             if quantity == "densN7":
-                self.densN7 = np.array(tmf.dens7)
+                self.densN7 = np.array(tmf["dens7"])
 
                 if self.pandas:
                     densN7 = pd.DataFrame({"densN7": self.densN7})
@@ -96,7 +96,8 @@ class FieldInstant():
         # self.extent contains information on the row and column
         row, col = np.shape(self.ez)
 
-        self.extent = [ row, col ]
+        self.extent = tmf["extent"]
+        self.shape = [ row, col ]
 
         if laser_pol == np.pi/2:
             self.laser_field = self.ey
@@ -120,7 +121,7 @@ class FieldInstant():
             the amplitude of the envelop with respect to z_envelop
         """
 
-        laser_field_1D = self.laser_field[int(self.extent[0]/2),:]
+        laser_field_1D = self.laser_field[int(self.shape[0]/2),:]
 
         roots = findRoot( laser_field_1D, self.zfield )
         envelop = []
@@ -149,7 +150,7 @@ class FieldInstant():
 
         return (z_envelop, envelop)
 
-    def laser_a0( self ):
+    def laser_a0( self, w0):
         """
         returns the laser a0
 
@@ -164,8 +165,7 @@ class FieldInstant():
         # We only care about laser propagating forward, in WARP,
         #the convention is left to right
         index = np.compress( self.zfield>=0, np.arange(len(self.zfield)))
-        laser_normalized = self.normalizedLaser(
-                            self.laser_field[int(self.extent[0]/2), index])
+        laser_normalized = self.normalizedField(w0,"laser")
 
         imax = np.argmax(laser_normalized)
 
@@ -201,11 +201,11 @@ class FieldInstant():
                 maximum bound of the ith bucket
         """
 
-        index = np.argmax( self.laser_field[self.extent[0]/2,:] )
+        index = np.argmax( self.laser_field[self.shape[0]/2,:] )
 
         # Savitzky-golay filtering is applied to smooth the Ez-field in order
         # to avoid any abrupt change of sign due to the noise
-        ez_filtered = savitzkyGolay(self.ez[self.extent[0]/2,:], 51, 3)
+        ez_filtered = savitzkyGolay(self.ez[self.shape[0]/2,:], 51, 3)
         ez_temp = ez_filtered[ 0:index ]
         z_temp = self.zfield[ 0:index ]
         roots = findRoot( ez_temp, z_temp )
@@ -254,9 +254,9 @@ class FieldInstant():
         """
 
         if field_type == "laser":
-            field = self.laser_field[int(self.extent[0]/2)]
+            field = self.laser_field[int(self.shape[0]/2)]
 
         elif field_type =="wake":
-            field = self.ez[int(self.extent[0]/2)]
+            field = self.ez[int(self.shape[0]/2)]
 
         return field*e/(m_e*c*w)
