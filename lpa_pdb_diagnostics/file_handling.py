@@ -1,6 +1,7 @@
 import os
 import h5py
 import numpy as np
+import result_path as rp
 import pdb
 
 class FileWriting():
@@ -30,16 +31,13 @@ class FileWriting():
         size : size of the data
         """
 
-        self.result_path = os.getcwd() + "/result/"
-
-        if not os.path.exists(self.result_path):
-            os.makedirs(self.result_path)
-
+        dir_path = rp.ResultPath()
+        self.result_path = dir_path.result_path
         self.dname = dname
         self.groups = groups
         self.create_file( file_name )
 
-        print "A file named %s in %s is created." %(file_name,
+        print "A file named %s.hdf5 in %s is created." %(file_name,
               self.result_path)
 
     def create_file( self, file_name ):
@@ -59,7 +57,7 @@ class FileWriting():
         self.fname = file_name + ".hdf5"
         self.file_object = h5py.File( self.result_path + self.fname , 'w')
 
-        if self.groups != None:
+        if self.groups is not None:
             self.group_object = []
             for group in self.groups:
                 self.group_object.append(self.file_object.create_group(str(group)))
@@ -87,7 +85,7 @@ class FileWriting():
         if len(attrs)!= len(self.dname):
             raise "len(attrs) has to be the same as len(dname)."
 
-        if self.groups!=None:
+        if self.groups is not None:
             for indexg in xrange(len(self.groups)):
                 for indexq, quantity in enumerate(self.dname):
                     #print "size of dset", dset

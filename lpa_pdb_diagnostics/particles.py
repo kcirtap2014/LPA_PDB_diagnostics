@@ -5,8 +5,12 @@ import sys
 from scipy.constants import e, c
 from scipy.signal import find_peaks_cwt
 import pdb
-from generics import gamma2Energy, leftRightFWHM, bilinearInterpolation
+from generics import gamma2Energy, leftRightFWHM, bilinearInterpolation, w2charge
+import result_path as rp
+from pylab import plt
 from file_handling import FileWriting
+import matplotlib
+import pdb
 
 try:
     import pandas as pd
@@ -56,7 +60,7 @@ class ParticleInstant():
                     frame.append(PID)
 
             if quantity == "Weight":
-                self.w = np.array(tmp["w"])
+                self.w = np.array(tmp["w"])#*tmp(sw)
                 self.qdict["w"] = self.num_quantities
                 self.num_quantities += 1
                 if self.pandas:
@@ -132,6 +136,13 @@ class ParticleInstant():
 
         if self.pandas:
             self.df = pd.concat(frame, axis = 1 )
+
+    def get_qdict( self ):
+        """
+        returns qdict for reference purpose
+        """
+
+        return self.qdict
 
     def select( self, gamma_threshold = None, ROI = None ):
         """
@@ -266,9 +277,9 @@ class ParticleInstant():
                 chosenParticles[index - 1] = self.by[indexList]
                 chosenParticles[index] = self.bz[indexList]
 
-        return chosenParticles, self.qdict
+        return chosenParticles
 
-def beam_charge( w, *args ):
+def beam_charge( w ):
     """
     Returns the beam charge of the chosen particles.
 
@@ -282,19 +293,24 @@ def beam_charge( w, *args ):
     Charge: float value (in Coulomb)
     """
     try:
-        charge = np.sum(w)*e
+        s_charge = w2charge(w)
+        charge = np.sum(s_charge)
     except ValueError:
         charge = 0.0
 
     return charge
 
-def beam_spectrum( gamma, w, lwrite = False,
-                    bin_size = 0.5, density = False ):
+def beam_spectrum( frame_num, gamma, w, lwrite = False,
+                    bin_size = 0.5, density = False, lsavefig = True,
+                    leg = None):
     """
     Returns the beam spectrum of the chosen particles.
 
     Parameters:
     -----------
+    frame_num: int
+        frame_num for writing purpose
+
     gamma: 2D numpy array
         gamma of particles for different species
 
@@ -307,7 +323,11 @@ def beam_spectrum( gamma, w, lwrite = False,
     density: boolean
         whether to normalize the spectrum, default value False
 
-    species_combine:
+    lsavefig: boolean
+        flag to save figure or not
+
+    legend: 1D string list
+        legend for the figure
 
     Returns:
     --------
@@ -317,40 +337,80 @@ def beam_spectrum( gamma, w, lwrite = False,
     dQdE: float value
         charge in Coulomb/MeV
     """
+    try:
+        num_species = len(gamma)
+        energy = []
+        dQdE = []
 
-    num_species = len(gamma)
-    energy = []
-    dQdE = []
+        for index in xrange(num_species):
+            en = gamma2Energy(gamma[index])
+            bins = int((np.max(en) - np.min(en))/bin_size)
+            temp_dQdE, temp_energy = np.histogram( en, bins = bins,
+                        weights = w[index] , density = density)
+            temp_dQdE *= e
+            temp_energy = np.delete( temp_energy, 0 ) # removing the first element
+            dQdE.append(temp_dQdE)
+            energy.append(temp_energy)
 
-    for index in xrange(num_species):
-        en = gamma2Energy(gamma[index])
-        bins = int((np.max(en) - np.min(en))/bin_size)
-        temp_dQdE, temp_energy = np.histogram( en, bins = bins,
-                    weights = w[index] , density = density)
-        temp_dQdE *= e
-        temp_energy = np.delete( temp_energy, 0 ) # removing the first element
-        dQdE.append(temp_dQdE)
-        energy.append(temp_energy)
+        index_largest_dynamics = np.argmax( map(lambda x: np.max(x) - np.min(x),
+                                 energy))
+        ref_energy = energy[index_largest_dynamics]
 
-    index_largest_dynamics = np.argmax( map(lambda x: np.max(x) - np.min(x),
-                             energy))
-    ref_energy = energy[index_largest_dynamics]
+        dQdE_interp = []
 
-    dQdE_interp = []
+        for index in xrange(num_species):
+            dQdE_interp.append(np.interp(ref_energy, energy[index], dQdE[index]))
 
-    for index in xrange(num_species):
-        dQdE_interp.append(np.interp(ref_energy, energy[index], dQdE[index]))
+        #this is to store the contribution of all species to the spectrum
+        dQdE.append(np.sum( dQdE_interp[0:num_species], axis = 0 ))
+        energy.append(ref_energy)
 
-    #this is to store the contribution of all species to the spectrum
-    dQdE.append(np.sum( dQdE_interp[0:num_species], axis = 0 ))
-    energy.append(ref_energy)
+        if 'inline' in matplotlib.get_backend():
+            fig, ax = plt.subplots(dpi=150)
+        else:
+            fig, ax = plt.subplots( dpi = 500 )
 
-    if lwrite:
-        gname = np.arange(num_species + 1).astype('str')
-        qname = ["energy", "dQdE"]
-        f = FileWriting( qname , "BeamSpectrum" , groups = gname)
-        stacked_data = np.stack( (energy, dQdE), axis = 1 )
-        f.write( stacked_data, np.shape(stacked_data) , attrs = [ "MeV", "C" ])
+        fig.patch.set_facecolor('white')
+        c = [ "blue","red","black", "green", "magenta" ]
+
+        for i in xrange(num_species + 1):
+            if leg is not None:
+                ax.plot( energy[i], dQdE[i], color = c[i%num_species],
+                label = leg[i])
+            else:
+                ax.plot( energy[i], dQdE[i], color = c[i%num_species] )
+
+        ax.set_xlabel(r"$\mathrm{Energy[MeV]}$")
+        ax.set_ylabel(r"$\mathrm{dQdE[C/MeV]}$")
+        font = {'family':'sans-serif'}
+        plt.rc('font', **font)
+
+        if leg is not None:
+            # Now add the legend with some customizations.
+            legend = plt.legend(loc='best', shadow=True)
+
+            # Set the fontsize
+            for label in legend.get_texts():
+                label.set_fontsize('large')
+
+            for label in legend.get_lines():
+                label.set_linewidth(1.5)  # the legend line width
+
+        if lwrite:
+            gname = np.arange(num_species + 1).astype('str')
+            qname = ["energy", "dQdE"]
+            f = FileWriting( qname , "beam_spectrum_%d" %frame_num , groups = gname)
+            stacked_data = np.stack( (energy, dQdE), axis = 1 )
+            f.write( stacked_data, np.shape(stacked_data) , attrs = [ "MeV", "C" ])
+
+        if lsavefig:
+            dir_path = rp.ResultPath()
+            fig.savefig( dir_path.result_path + "beam_spectrum_%d.png" %frame_num)
+
+    except ValueError:
+        print "Check if the particle arrays are empty."
+        energy = []
+        dQdE = []
 
     return energy, dQdE
 
@@ -381,12 +441,15 @@ def beam_peak( energy, dQdE, peak_width = 50.0 ):
         Charge density of the located peak(s)
 
     """
+    try:
+        bin_size = energy[1] - energy[0]
+        num_bin_peak_width = int(peak_width/bin_size)
+        peakInd = find_peaks_cwt(dQdE, np.arange(1,num_bin_peak_width))
 
-    bin_size = energy[1] - energy[0]
-    num_bin_peak_width = int(peak_width/bin_size)
-    peakInd = find_peaks_cwt(dQdE, np.arange(1,num_bin_peak_width))
+        return peakInd, energy[peakInd], dQdE[peakInd]
 
-    return peakInd, energy[peakInd], dQdE[peakInd]
+    except ValueError:
+        print "No peak is found"
 
 def beam_energy_spread( energy, dQdE, lfwhm = True, peak = None ):
     """
@@ -454,8 +517,9 @@ def beam_energy_spread( energy, dQdE, lfwhm = True, peak = None ):
             deltaEE = deltaE/Epeak
 
     except ZeroDivisionError:
-        average_energy = 0
-        eSpread = 0
+        print "Error in energy spread calculation"
+        deltaE = None
+        deltaEE = None
 
     return deltaE, deltaEE
 
@@ -504,36 +568,3 @@ def beam_emittance( x, ux, w ):
         weighted_emittance = 0
 
     return weighted_emittance
-
-def charge_density(x, ux, w):
-    """
-    returns the histogram weighted by charge.
-
-    Parameters:
-    -----------
-    x: 1D numpy array
-        distribution in position (can be x, y or z)
-
-    ux: 1D numpy array
-        distribution in momentum (can be ux, uy, uz)
-
-    w: 1D numpy array
-        weight distribution of the particles
-
-    Returns:
-    --------
-    Hmasked: 2D numpy array
-        2D distribution of the charge
-
-    extent: 1D array
-        necessary information on the limits in both x and y for reconstuction
-        purpose
-
-    """
-    charge = w*e
-    bin_num = int((max(ux)-min(ux))*((max(x) - min(x))/1e-6))
-    H, xedges, yedges = np.histogram2d(ux, x, bins = bin_num, weights = charge)
-    Hmasked = np.ma.masked_where(H == 0,H)
-    extent = [ min(x), max(x), min(ux), max(ux) ]
-
-    return Hmasked, extent

@@ -1,7 +1,13 @@
+import os
 import random
 from scipy.constants import e, c, m_e
 import math
 import numpy as np
+from file_handling import FileWriting
+import pylab as plt
+import result_path as rp
+import matplotlib
+import pdb
 
 def quant_concatenate ( array_obj_quant , keep_object_name = False ):
 
@@ -23,18 +29,23 @@ def quant_concatenate ( array_obj_quant , keep_object_name = False ):
     c_object: ndarray
         concatenated object quantities
     """
-    if keep_object_name:
 
-    else:
-        c_object = [[] for i in xrange(np.shape(array_obj_quant)[1])]
-        #Loop in quantities
-        for iquant in xrange(np.shape(array_obj_quant)[1]):
+    c_object = [[] for i in xrange(np.shape(array_obj_quant)[1])]
+    #Loop in quantities
+    for iquant in xrange(np.shape(array_obj_quant)[1]):
+        if not keep_object_name:
             temp = []
-            #Loop in number of species
-            for index, obj in enumerate(array_obj_quant):
-                temp += obj[index][iquant]
+        #Loop in number of species
+        for index, obj in enumerate(array_obj_quant):
+            if keep_object_name:
+                if index==0:
+                    temp = [obj[iquant]]
+                else:
+                    temp += [obj[iquant]]
+            else:
 
-            c_object[iquant] = temp
+                temp = np.concatenate((temp,  obj[iquant]), axis=0)
+        c_object[iquant] = temp
 
     return c_object
 
@@ -206,6 +217,22 @@ def bilinearInterpolation( yleft, yright, xleft, xright, yreal):
 
     return xreal
 
+def w2charge ( w ):
+    """
+    returns the charge of a each particle.
+
+    Parameters:
+    -----------
+    w : 1D numpy array
+        weight of the particles
+
+    Returns:
+    --------
+    charge: 1D numpy array
+    """
+
+    return w*e
+
 def findRoot( y, x ):
     """
     finds the zero crossing or the roots of the input signal, the input signal
@@ -353,3 +380,112 @@ def savitzkyGolay( y, window_size, order, deriv=0, rate=1 ):
     y = np.concatenate((firstvals, y, lastvals))
 
     return np.convolve( m[::-1], y, mode='valid')
+
+def charge_density( x, gamma, w, reduction_factor = None):
+    """
+    returns the histogram weighted by charge.
+
+    Parameters:
+    -----------
+    x: 1D numpy array
+        distribution in position (can be x, y or z)
+
+    gamma: 1D numpy array
+        distribution in momentum (can be ux, uy, uz)
+
+    w: 1D numpy array
+        weight distribution of the particles
+
+    Returns:
+    --------
+    Hmasked: 2D numpy array
+        2D distribution of the charge
+
+    extent: 1D array
+        necessary information on the limits in both x and y for reconstuction
+        purpose
+
+    """
+    charge = w2charge( w )
+    energy = gamma2Energy( gamma )
+    bin_num = int((max(energy)-min(energy))*((max(x) - min(x))/1e-6))
+
+    if reduction_factor is not None:
+        energy *= reduction_factor
+
+    H, xedges, yedges = np.histogram2d(energy, x,
+                        bins = bin_num, weights = charge)
+    Hmasked = np.ma.masked_where(H == 0,H)
+    extent = [ min(x), max(x), min(energy), max(energy) ]
+
+    return Hmasked, extent
+
+def bigPicture( frame_num, p_z, p_gamma, p_w, f_z, f_wake, f_laser,
+                lsavefigure = True, lwrite = False ):
+    """
+    Plots the big picture.
+
+    Parameters:
+    -----------
+
+    """
+
+    if 'inline' in matplotlib.get_backend():
+        fig, ax = plt.subplots( dpi = 120 )
+    else:
+        fig,ax = plt.subplots( dpi = 300 )
+
+    fig.patch.set_facecolor('white')
+    cm_peak = plt.cm.get_cmap('RdBu')
+
+    try:
+        reduction_factor = 2*max(f_laser)/max(p_gamma)
+        Hmasked, extent = charge_density(p_z, p_gamma, p_w, reduction_factor )
+
+        sc_peak = ax.imshow( Hmasked, extent = extent, interpolation='nearest',
+                        origin='lower', cmap=cm_peak, aspect = "auto")
+        colorbar_pos_peak = fig.add_axes([0.9,0.115,.025,.785])
+        ax_colorbar_peak = fig.colorbar(sc_peak, cax =colorbar_pos_peak,
+                            orientation='vertical')
+
+        # Writing the particle
+        if lwrite:
+            qname_particle = [ "charge_density" , "extent" ]
+            fp = FileWriting( qname_particle , "Charge_density_%d" %frame_num )
+            data = [Hmasked.data] + [extent]
+            fp.write( data, np.shape(data) , attrs = ["C/m^2", "m"])
+
+    except ValueError:
+        reduction_factor = 0
+        print "No particles are detected for frame %d" %frame_num
+
+    ax.plot( f_z, f_wake, color="red" )
+    ax.plot( f_z, f_laser, color = "#87CEEB" )
+    ax.xaxis.set_tick_params(width=2, length = 8)
+    ax.yaxis.set_tick_params(width=2, length = 8)
+    ax.set_xlim(min(f_z), max(f_z))
+    ax.set_xlabel(r"$z\,(m) $")
+    if reduction_factor !=0:
+        ax.set_ylabel(r"$Norm.\, amp.$"+"\n"+ r"$Energy/%d(MeV)$" \
+        %int(1/reduction_factor))
+    else:
+        ax.set_ylabel(r"$Norm.\, amp.$")
+    plt.setp(ax.get_xticklabels()[::2], visible=False)
+    font = {'family':'sans-serif'}
+    plt.rc('font', **font)
+
+    if lsavefigure:
+        dir_path = rp.ResultPath()
+        fig.savefig( dir_path.result_path + "bigPicture_%d.png" %frame_num)
+
+    if lwrite:
+        # Writing the field
+        gname_field = ["Laser", "Wake"]
+        qname_field = ["z", "field_amp"]
+        ff = FileWriting( qname_field, "Normalized_Fields_%d" %frame_num,
+                        groups = gname_field)
+        zfield = [f_z]*2
+        field = [f_laser] + [f_wake]
+        stacked_data = np.stack( (zfield, field  ), axis = 1 )
+        ff.write(stacked_data, np.shape(stacked_data),
+        attrs = ["m", "normalized_unit (by w0 for laser, wp for wakefield)"])

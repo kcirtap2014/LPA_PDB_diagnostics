@@ -16,6 +16,7 @@ Then pass the method diag.write to installafterstep :
     installafterstep( diag2.write )
 """
 
+from .result_path import *
 from .particles import *
 from .fields import *
 from .file_handling import *
