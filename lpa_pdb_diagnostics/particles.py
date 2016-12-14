@@ -169,7 +169,7 @@ class ParticleInstant():
         try:
             indexListGamma = set()
             indexListROI = set()
-            n_array = np.arange(len(self.ssn))
+            n_array = np.arange(len(self.w))
 
             if gamma_threshold:
                 #Test the gamma_threshold structure
@@ -247,35 +247,36 @@ class ParticleInstant():
         for quantity in self.quantities:
             if quantity == "PID":
                 chosenParticles[index] = self.ssn[indexList].astype(int)
+                index += 1
 
             if quantity == "Weight":
-                index += 1
                 chosenParticles[index] = self.w[indexList]
+                index += 1
 
             if quantity == "Position":
+                chosenParticles[index ] = self.x[indexList]
+                chosenParticles[index + 1] = self.y[indexList]
+                chosenParticles[index + 2] = self.z[indexList]
                 index += 3
-                chosenParticles[index - 2] = self.x[indexList]
-                chosenParticles[index - 1] = self.y[indexList]
-                chosenParticles[index] = self.z[indexList]
 
             if quantity == "Momentum":
+                chosenParticles[index ] = self.ux[indexList]
+                chosenParticles[index + 1] = self.uy[indexList]
+                chosenParticles[index + 2] = self.uz[indexList]
+                chosenParticles[index + 3] = self.gamma[indexList]
                 index += 4
-                chosenParticles[index - 3] = self.ux[indexList]
-                chosenParticles[index - 2] = self.uy[indexList]
-                chosenParticles[index - 1] = self.uz[indexList]
-                chosenParticles[index] = self.gamma[indexList]
 
             if quantity == "E":
+                chosenParticles[index ] = self.ex[indexList]
+                chosenParticles[index + 1] = self.ey[indexList]
+                chosenParticles[index + 2] = self.ez[indexList]
                 index += 3
-                chosenParticles[index - 2] = self.ex[indexList]
-                chosenParticles[index - 1] = self.ey[indexList]
-                chosenParticles[index ] = self.ez[indexList]
 
             if quantity == "B":
+                chosenParticles[index ] = self.bx[indexList]
+                chosenParticles[index + 1] = self.by[indexList]
+                chosenParticles[index + 2] = self.bz[indexList]
                 index += 3
-                chosenParticles[index - 2] = self.bx[indexList]
-                chosenParticles[index - 1] = self.by[indexList]
-                chosenParticles[index] = self.bz[indexList]
 
         return chosenParticles
 
