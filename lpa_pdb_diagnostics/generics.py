@@ -5,7 +5,7 @@ import math
 import numpy as np
 from file_handling import FileWriting
 import pylab as plt
-import result_path as rp
+import config
 import matplotlib
 import pdb
 
@@ -421,7 +421,7 @@ def charge_density( x, gamma, w, reduction_factor = None):
     return Hmasked, extent
 
 def bigPicture( frame_num, p_z, p_gamma, p_w, f_z, f_wake, f_laser,
-                lsavefigure = True, lwrite = False ):
+                lsavefigure = True, lwrite = False, reduction_factor = None ):
     """
     Plots the big picture.
 
@@ -431,7 +431,7 @@ def bigPicture( frame_num, p_z, p_gamma, p_w, f_z, f_wake, f_laser,
     """
 
     if 'inline' in matplotlib.get_backend():
-        fig, ax = plt.subplots( dpi = 120 )
+        fig, ax = plt.subplots( dpi = 150 )
     else:
         fig,ax = plt.subplots( dpi = 300 )
 
@@ -439,14 +439,15 @@ def bigPicture( frame_num, p_z, p_gamma, p_w, f_z, f_wake, f_laser,
     cm_peak = plt.cm.get_cmap('RdBu')
 
     try:
-        reduction_factor = 2*max(f_laser)/max(p_gamma)
-        Hmasked, extent = charge_density(p_z, p_gamma, p_w, reduction_factor )
+        if reduction_factor is None:
+            reduction_factor = 2*max(f_laser)/max(p_gamma)
+        Hmasked, extent = charge_density( p_z, p_gamma, p_w, reduction_factor )
 
         sc_peak = ax.imshow( Hmasked, extent = extent, interpolation='nearest',
                         origin='lower', cmap=cm_peak, aspect = "auto")
-        colorbar_pos_peak = fig.add_axes([0.9,0.115,.025,.785])
+        colorbar_pos_peak = fig.add_axes([0.9,0.118,.025,.782])
         ax_colorbar_peak = fig.colorbar(sc_peak, cax =colorbar_pos_peak,
-                            orientation='vertical')
+                            orientation = 'vertical')
 
         # Writing the particle
         if lwrite:
@@ -464,10 +465,11 @@ def bigPicture( frame_num, p_z, p_gamma, p_w, f_z, f_wake, f_laser,
     ax.xaxis.set_tick_params(width=2, length = 8)
     ax.yaxis.set_tick_params(width=2, length = 8)
     ax.set_xlim(min(f_z), max(f_z))
-    ax.set_xlabel(r"$z\,(m) $")
+    ax.set_xlabel(r"$\mathrm{z\,(m)}$")
     if reduction_factor !=0:
-        ax.set_ylabel(r"$Norm.\, amp.$"+"\n"+ r"$Energy/%d(MeV)$" \
-        %int(1/reduction_factor))
+        ax.set_ylabel(r"$\mathrm{Norm.\, amp.}$"+"\n"+ \
+                        r"$\mathrm{Energy/%d\,(MeV)}$" \
+                        %int(1/reduction_factor))
     else:
         ax.set_ylabel(r"$Norm.\, amp.$")
     plt.setp(ax.get_xticklabels()[::2], visible=False)
@@ -475,8 +477,7 @@ def bigPicture( frame_num, p_z, p_gamma, p_w, f_z, f_wake, f_laser,
     plt.rc('font', **font)
 
     if lsavefigure:
-        dir_path = rp.ResultPath()
-        fig.savefig( dir_path.result_path + "bigPicture_%d.png" %frame_num)
+        fig.savefig( config.result_path + "bigPicture_%d.png" %frame_num)
 
     if lwrite:
         # Writing the field

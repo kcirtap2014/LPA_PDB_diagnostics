@@ -1,7 +1,7 @@
 import os
 import h5py
 import numpy as np
-import result_path as rp
+import config
 import pdb
 
 class FileWriting():
@@ -31,14 +31,12 @@ class FileWriting():
         size : size of the data
         """
 
-        dir_path = rp.ResultPath()
-        self.result_path = dir_path.result_path
         self.dname = dname
         self.groups = groups
         self.create_file( file_name )
 
         print "A file named %s.hdf5 in %s is created." %(file_name,
-              self.result_path)
+              config.result_path)
 
     def create_file( self, file_name ):
         """
@@ -55,7 +53,7 @@ class FileWriting():
         """
 
         self.fname = file_name + ".hdf5"
-        self.file_object = h5py.File( self.result_path + self.fname , 'w')
+        self.file_object = h5py.File( config.result_path + self.fname , 'w')
 
         if self.groups is not None:
             self.group_object = []
@@ -115,13 +113,13 @@ class FileWriting():
 
     def read ( self ):
 
-        f = h5py.File(self.result_path + self.fname, 'r')
+        f = h5py.File(config.result_path + self.fname, 'r')
 
         return f
 
 class FileReading():
 
-    def __init__( self, file_name ):
+    def __init__( self, file_name , current_path = None ):
 
         """
         Initialize FileReading object
@@ -131,9 +129,14 @@ class FileReading():
         file_name : string
             name of the file
 
+        current_path: string (directory)
+            the path where the result directory is stored. If not provided, use
+            the current directory. Default: None
         """
 
-        current_path = os.getcwd() + "/result"
+        if current_path is not None:
+            current_path = config.result_path
+
         self.file_path = current_path + "/"+ file_name
 
     def read( self ):

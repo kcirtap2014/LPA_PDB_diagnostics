@@ -5,12 +5,13 @@ import sys
 from scipy.constants import e, c
 from scipy.signal import find_peaks_cwt
 import pdb
-from generics import gamma2Energy, leftRightFWHM, bilinearInterpolation, w2charge
-import result_path as rp
+from generics import gamma2Energy, leftRightFWHM, \
+                     bilinearInterpolation, w2charge
+import config
 from pylab import plt
 from file_handling import FileWriting
 import matplotlib
-import pdb
+import cubehelix
 
 try:
     import pandas as pd
@@ -37,7 +38,8 @@ class ParticleInstant():
 
         """
 
-        print "** Processing ** Particles: Initialisation of "+str(filename)+" **"
+        print "** Processing ** Particles: Initialisation of "\
+                +str(filename)+" **"
 
         with open( filename ) as pickle_file:
             tmp = pickle.load( pickle_file )
@@ -183,8 +185,8 @@ class ParticleInstant():
                         countValidAgg+=1
 
                 if countValidAgg == 1:
-                    indexListGamma = set(np.compress(self.gamma>gamma_threshold[0],
-                    n_array))
+                    indexListGamma = set( np.compress(
+                                    self.gamma > gamma_threshold[0], n_array) )
 
                 else:
                     indexListGamma = set(np.compress(
@@ -349,7 +351,7 @@ def beam_spectrum( frame_num, gamma, w, lwrite = False,
             temp_dQdE, temp_energy = np.histogram( en, bins = bins,
                         weights = w[index] , density = density)
             temp_dQdE *= e
-            temp_energy = np.delete( temp_energy, 0 ) # removing the first element
+            temp_energy = np.delete( temp_energy, 0 ) #removing the first element
             dQdE.append(temp_dQdE)
             energy.append(temp_energy)
 
@@ -372,17 +374,20 @@ def beam_spectrum( frame_num, gamma, w, lwrite = False,
             fig, ax = plt.subplots( dpi = 500 )
 
         fig.patch.set_facecolor('white')
-        c = [ "blue","red","black", "green", "magenta" ]
+        c = [ "blue", "red", "black", "green", "magenta" ]
 
         for i in xrange(num_species + 1):
             if leg is not None:
-                ax.plot( energy[i], dQdE[i], color = c[i%num_species],
-                label = leg[i])
+                ax.plot( energy[i], dQdE[i], color = c[i%(num_species + 1)],
+                label = leg[i], linewidth = 2)
             else:
-                ax.plot( energy[i], dQdE[i], color = c[i%num_species] )
+                ax.plot( energy[i], dQdE[i], color = c[i%(num_species + 1)],
+                linewidth = 2 )
 
-        ax.set_xlabel(r"$\mathrm{Energy[MeV]}$")
-        ax.set_ylabel(r"$\mathrm{dQdE[C/MeV]}$")
+        ax.set_xlabel(r"$\mathrm{Energy\,(MeV)}$")
+        ax.set_ylabel(r"$\mathrm{dQdE\,(C/MeV)}$")
+        ax.xaxis.set_tick_params(width=2, length = 8)
+        ax.yaxis.set_tick_params(width=2, length = 8)
         font = {'family':'sans-serif'}
         plt.rc('font', **font)
 
@@ -400,13 +405,14 @@ def beam_spectrum( frame_num, gamma, w, lwrite = False,
         if lwrite:
             gname = np.arange(num_species + 1).astype('str')
             qname = ["energy", "dQdE"]
-            f = FileWriting( qname , "beam_spectrum_%d" %frame_num , groups = gname)
+            f = FileWriting( qname , "beam_spectrum_%d" %frame_num ,
+                            groups = gname)
             stacked_data = np.stack( (energy, dQdE), axis = 1 )
-            f.write( stacked_data, np.shape(stacked_data) , attrs = [ "MeV", "C" ])
+            f.write( stacked_data, np.shape(stacked_data),
+                    attrs = [ "MeV", "C" ])
 
         if lsavefig:
-            dir_path = rp.ResultPath()
-            fig.savefig( dir_path.result_path + "beam_spectrum_%d.png" %frame_num)
+            fig.savefig( config.result_path + "beam_spectrum_%d.png" %frame_num)
 
     except ValueError:
         print "Check if the particle arrays are empty."
@@ -524,7 +530,178 @@ def beam_energy_spread( energy, dQdE, lfwhm = True, peak = None ):
 
     return deltaE, deltaEE
 
-def beam_emittance( x, ux, w ):
+def sorted_by_gamma_beam_emittance ( frame_num, chosen_particles, qdict,
+                                    direction, num_bins = None, lwrite = True,
+                                    lplot = False, lsavefig = False ):
+    """
+    runs an analysis on beam emittance with respect to gamma
+
+    Paramaters:
+    -----------
+    num_frame: int
+        frame number, for writing purpose
+
+    chosen_particles: ndarray
+        consists of quantities of selected particles
+
+    qdict: dict
+        dictionary that contains the correspondance to the array
+        "chosen particles" indices
+
+    direction: string
+        transverse directions. Can be either "x" or "y"
+
+    num_bins: int
+        This is an argument related to sort_by_gamma option, it indicates the
+        number of bins that the analysis should used. If none provided, num_bins
+        will be calculated by taking into account the dynamic of gamma.
+        Default: None
+
+    Returns:
+    --------
+    mid_bin: 1D numpy array
+        an array representing the binned gamma
+
+    emit: 1D numpy array
+        an array representing the emittance for each binned gamma
+
+    lplot: boolean
+        Plot figure if True. Default: False
+
+    lsavefig: boolean
+        Save figure of the emittance distribution if True. Default: False
+
+    lwrite: boolean
+        Save data of the emittance distribution if True. Default: False
+    """
+
+    try:
+        #do analysis according to the direction
+        if direction == "x":
+            x = chosen_particles[qdict["x"]]
+            ux = chosen_particles[qdict["ux"]]
+
+        elif direction =="y":
+            x = chosen_particles[qdict["y"]]
+            ux = chosen_particles[qdict["uy"]]
+
+        else:
+            raise "Invalid direction"
+
+        gamma = chosen_particles[qdict["gamma"]]
+        w = chosen_particles[qdict["w"]]
+
+        # By default, gamma = 2 in a bin
+        num_bins = int( (np.max(gamma) - np.min(gamma))/2 )
+
+        #Reconstruct the step
+        steps = np.linspace(np.min(gamma), np.max(gamma), num = num_bins)
+        mid_bin = (steps[0:-1] + steps[1:])/2
+        bin_shape = np.shape(mid_bin)[0]
+
+        #Initialize an empty array of emittance
+        emit = np.empty( bin_shape )
+
+        ##Binning the gamma and analyze the emittance for each bin
+        for b in xrange( bin_shape ):
+            index = np.compress( np.logical_and(gamma >= steps[b],
+                gamma < steps[b+1]), np.arange(len(gamma)))
+            bin_chosen_particles = np.take(chosen_particles, index, axis=1)
+            emit[b] = beam_emittance( frame_num, bin_chosen_particles,
+                                      qdict, direction )
+
+        if lwrite:
+            qname = ["gamma", "emittance"]
+            f = FileWriting( qname , "sorted_beam_emittance_%s_%d" \
+                            %(direction, frame_num ))
+            stacked_data = np.stack( (mid_bin, emit), axis = 0 )
+            f.write( stacked_data, np.shape(stacked_data) ,
+                    attrs = [ "arb. units", "m.rad" ])
+
+        if lplot:
+            if 'inline' in matplotlib.get_backend():
+                fig, ax = plt.subplots(dpi=150)
+            else:
+                fig, ax = plt.subplots( dpi = 500 )
+
+            fig.patch.set_facecolor('white')
+
+            ax.plot( mid_bin, emit*1e6, linewidth = 2 )
+
+            ax.set_xlabel(r"$\mathrm{\gamma\,(arb.\, unit)}$")
+            ax.set_ylabel(r"$\mathrm{\epsilon_{norm.}\,(mm.\,mrad)}$")
+            ax.xaxis.set_tick_params(width=2, length = 8)
+            ax.yaxis.set_tick_params(width=2, length = 8)
+            ax.set_xlim(0.9*np.min(mid_bin), 1.1*np.max(mid_bin))
+            font = {'family':'sans-serif'}
+            plt.rc('font', **font)
+
+            if lsavefig:
+                fig.savefig( config.result_path + \
+                            "sorted_beam_emittance_%s_%d.png" \
+                            %(direction, frame_num ))
+
+        if not lplot and lsavefig:
+            print "Sorry, no plot, no save."
+
+    except ValueError, TypeError:
+        print "Sorted by gamma beam emittance: "+ \
+               "Analysis cannot be done because particles are not detected. "
+        mid_bin = None
+        emit = None
+
+    return mid_bin, emit
+
+def emittance_1D ( x, ux, w ):
+    """
+    returns the 1D histogam of both axes of the phase space plot, position and
+    momentum, the values n_x and n_ux are normalized.
+
+    Parameters:
+    -----------
+    x: 1D numpy array
+        position of the beam
+
+    ux: 1D numpy array
+        momentum of the beam
+
+    w: 1D numpy array
+        weight of the beam
+
+    Returns:
+    --------
+    n_x: 1D numpy_array
+        the y - coordinates of the beam position
+
+    bin_x: 1D numpy array
+        the x - coordinates of the beam position
+
+    n_ux: 1D numpy array
+        the y - coordinates of the beam momentum
+
+    bin_ux: 1D numpy array
+        the y - coordinates of the beam momentum
+    """
+
+    num_bin = 1000
+    n_x, bin_x = np.histogram( x, bins = num_bin,
+                                weights = w, density = True)
+    n_ux, bin_ux = np.histogram( ux, bins = num_bin,
+                                weights = w, density = True )
+    bin_x = np.delete( bin_x, -1 )
+    bin_ux = np.delete( bin_ux, -1 )
+
+    #Normalization of 1D emittances
+    n_x *= -np.min(bin_ux)/np.max(n_x)
+    n_ux *= np.min(bin_x)/np.max(n_ux)
+    n_x += np.min(ux)
+    n_ux += np.max(x)
+
+    return n_x, bin_x, n_ux, bin_ux
+
+def beam_emittance( frame_num, chosen_particles, qdict, direction,
+                    histogram = False, num_bins = None, lplot = False,
+                    lsavefig = False, lwrite = False ):
     """
     Calculation on emittance based on statistical approach in J. Buon (LAL)
     Beam phase space and Emittance. We first calculate the covariance, and
@@ -534,22 +711,46 @@ def beam_emittance( x, ux, w ):
 
     Parameters:
     -----------
-    x: 1D array of floats
-        coordinates of the beam
+    chosen_particles: ndarray
+        consists of quantities of selected particles
 
-    ux: 1D array of floats
-        momentum of the beam
+    qdict: dict
+        dictionary that contains the correspondance to the array
+        "chosen particles" indices
 
-    w : 1D array of floats
-        weight of the beam
+    direction: string
+        transverse directions. Can be either "x" or "y"
 
-    Return:
+    lsavefig: boolean
+        Save figure of the emittance distribution if True. Default: False
+
+    lwrite: boolean
+        Save data of the emittance distribution if True. Default: False
+
+    num_bins: int
+        bin number for the histogram plot of the phase space plot. Default None.
+
+    Returns:
     --------
     weighted_emittance: float
         beam emittance
     """
 
     try:
+        #do analysis according to the direction
+        if direction == "x":
+            x = chosen_particles[qdict["x"]]
+            ux = chosen_particles[qdict["ux"]]
+
+        elif direction =="y":
+            x = chosen_particles[qdict["y"]]
+            ux = chosen_particles[qdict["uy"]]
+
+        else:
+            raise "Invalid direction"
+
+        w = chosen_particles[qdict["w"]]
+
         w_x = np.mean(x)
         w_ux = np.mean(ux)
         z_array = np.arange(np.shape(x)[0])
@@ -562,10 +763,84 @@ def beam_emittance( x, ux, w ):
         xuxw = [[variance_x,covariance_xux],[covariance_xux,variance_ux]]
         weighted_emittance = np.sqrt(np.linalg.det(xuxw))
 
+        if histogram:
+            if num_bins == None:
+                num_bins = int(1e6* (np.max(ux) - np.min(ux))\
+                                    *(np.max(x) - np.min(x)))
+
+            H,xedges,yedges = np.histogram2d( ux, x,
+                                              bins = num_bins, weights = w)
+            H = np.rot90(H)
+            H = np.flipud(H)
+            Hmasked = np.ma.masked_where( H == 0, H )
+            Hnorm = Hmasked/np.amax(np.amax( Hmasked ))
+            extent = np.array([ np.min(x), np.max(x), np.min(ux), np.max(ux) ])
+
+            # 1D emittances
+            #n_x, bin_x, n_ux, bin_ux = emittance_1D ( x, ux, w )
+
+            if lwrite:
+                #Writing histogram data
+                qname_particle = [ "emittance" , "extent" ]
+                fh = FileWriting( qname_particle , "Histogram_emittance_%s_%d" \
+                                    %( direction,frame_num ))
+                data = [Hnorm.data] + [extent]
+                fh.write( data, np.shape(data) , attrs = ["m", "m_e*c"])
+
+                #Writing 1D data
+
+                #position_data = np.stack((bin_x, n_x), axis = 0)
+                #momentum_data = np.stack((bin_ux, n_ux), axis = 0)
+                #qname_particle = [ "x" , "y" ]
+                #fp = FileWriting( qname_particle , "1D_emittance_position_%s_%d" \
+                #                    %( direction,frame_num ))
+                #fp.write( position_data, np.shape(position_data),
+                #        attrs = ["m", "arb.units"])
+                #fm = FileWriting( qname_particle , "1D_emittance_momentum_%s_%d" \
+                #                    %( direction,frame_num ))
+                #fm.write( momentum_data, np.shape(momentum_data),
+                #        attrs = ["m_e*c", "arb.units"])
+
+            if lplot:
+                if 'inline' in matplotlib.get_backend():
+                    fig, ax = plt.subplots( dpi=150 )
+                else:
+                    fig, ax = plt.subplots( dpi=500 )
+
+                fig.patch.set_facecolor('white')
+                cm_peak = cubehelix.cmap( rot = -0.8,  reverse = True )
+                plot_extent = [ np.min(x)*1e6, np.max(x)*1e6,
+                                np.min(ux), np.max(ux) ]
+                sc_peak = (ax.imshow( Hnorm, extent = plot_extent,
+                            aspect= "auto", interpolation ='nearest',
+                            origin ='lower', cmap = cm_peak))
+                colorbar_pos_peak = fig.add_axes([0.9, 0.12, 0.025, 0.78])
+                ax_colorbar_peak = fig.colorbar(sc_peak,
+                                                cax = colorbar_pos_peak,
+                                                orientation='vertical')
+                #ax.plot(bin_x*1e6, n_x, color="blue",linewidth=2)
+                #ax.plot(n_ux, bin_ux, color="blue", linewidth=2)
+                ax.set_xlabel(r"$\mathrm{%s\,(\mu m)}$" %direction)
+                ax.set_ylabel(r"$\mathrm{p_%s\,(m_{e}c)}$" %direction)
+                ax.xaxis.set_tick_params(width=2, length = 8)
+                ax.yaxis.set_tick_params(width=2, length = 8)
+                font = {'family':'sans-serif'}
+                plt.rc('font', **font)
+
+                if lsavefig:
+                    fig.savefig( config.result_path + \
+                                 "emittance_distribution_%s_%d.png" \
+                                 %( direction, frame_num ))
+
+            if not lplot and lsavefig:
+                print "Sorry, no plot, no save."
+
         if math.isnan(weighted_emittance):
             weighted_emittance = 0.0
 
-    except ZeroDivisionError:
-        weighted_emittance = 0
+    except ValueError:
+        print "Beam emittance: Analysis is not performed because" + \
+              "no particles are detected."
+        weighted_emittance = 0.0
 
     return weighted_emittance

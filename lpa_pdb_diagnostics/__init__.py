@@ -1,24 +1,20 @@
 """
-This file imports the objects that are used for data analysis with warp.
-It comes with an quickstart.ipynb.
+This file imports the objects that are used for data analysis for
+LPA_PDB_diagnostics.
 
 Usage
 -----
-In the Warp main script, initialize a
-FieldDiagnostic and a ParticleDiagnostic :
-    from openpmd_diag import FieldDiagnostic, ParticleDiagnostic
-    diag1 = FieldDiagnostic( period=50, top=top, w3d=w3d, em=em )
-    diag2 = ParticleDiagnostic( period=50, top=top, w3d=w3d,
-                     species={"electrons":elec} )
+In the ipython notebook or python console, type:
+    from lpa_pdb_diagnostics import *
 
-Then pass the method diag.write to installafterstep :
-    installafterstep( diag1.write )
-    installafterstep( diag2.write )
+To view the definition of each function, use docstring.
+
 """
 
-from .result_path import *
+from .config import *
 from .particles import *
 from .fields import *
 from .file_handling import *
 from .generics import *
 from .particle_tracking import ParticleTracking
+from .cubehelix import cmap
