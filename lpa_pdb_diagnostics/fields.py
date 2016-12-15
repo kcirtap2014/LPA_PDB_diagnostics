@@ -2,8 +2,6 @@ import cPickle as pickle
 import numpy as np
 import sys
 from scipy.constants import e, c, m_e
-from scipy.signal import find_peaks_cwt
-import pdb
 from generics import findRoot, savitzkyGolay, wstd
 from file_handling import FileWriting
 
@@ -165,8 +163,8 @@ class FieldInstant():
         # We only care about laser propagating forward, in WARP,
         #the convention is left to right
         index = np.compress( self.zfield>=0, np.arange(len(self.zfield)))
-        laser_normalized = self.normalizedField(w0,"laser")
-
+        temp_laser_normalized = self.normalizedField(w0,"laser")
+        laser_normalized = temp_laser_normalized[index]
         imax = np.argmax(laser_normalized)
 
         return (max(laser_normalized), self.zfield[imax])

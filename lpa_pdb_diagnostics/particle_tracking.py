@@ -1,16 +1,7 @@
-import sys
 import numpy as np
 from generics import randintGenerator
 from file_handling import FileWriting
 from particles import ParticleInstant
-
-try:
-    import pandas as pd
-except ImportError:
-    print "If you wish to use pandas to manipulate your data, please install \
-    the module follwing the instruction on this website \
-    http://pandas.pydata.org/pandas-docs/stable/install.html"
-    pass
 
 class ParticleTracking():
     """
@@ -139,7 +130,7 @@ class ParticleTracking():
         print "Running particle tracking algorithm. This may take a while..."
 
         for ifile, file in enumerate(self.file_array[-2::-1]):
-            Ins = Instant( file, self.quantities )
+            Ins = ParticleInstant( file, self.quantities )
             # Here, we don't filter particles
             chosen_particles = Ins.select()
             # Binary search only works with sorted array

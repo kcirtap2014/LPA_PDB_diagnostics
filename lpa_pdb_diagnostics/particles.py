@@ -2,9 +2,8 @@ import cPickle as pickle
 import numpy as np
 import math
 import sys
-from scipy.constants import e, c
+from scipy.constants import e
 from scipy.signal import find_peaks_cwt
-import pdb
 from generics import gamma2Energy, leftRightFWHM, \
                      bilinearInterpolation, w2charge
 import config
@@ -576,20 +575,8 @@ def sorted_by_gamma_beam_emittance ( frame_num, chosen_particles, qdict,
     """
 
     try:
-        #do analysis according to the direction
-        if direction == "x":
-            x = chosen_particles[qdict["x"]]
-            ux = chosen_particles[qdict["ux"]]
-
-        elif direction =="y":
-            x = chosen_particles[qdict["y"]]
-            ux = chosen_particles[qdict["uy"]]
-
-        else:
-            raise "Invalid direction"
 
         gamma = chosen_particles[qdict["gamma"]]
-        w = chosen_particles[qdict["w"]]
 
         # By default, gamma = 2 in a bin
         num_bins = int( (np.max(gamma) - np.min(gamma))/2 )
@@ -644,7 +631,7 @@ def sorted_by_gamma_beam_emittance ( frame_num, chosen_particles, qdict,
         if not lplot and lsavefig:
             print "Sorry, no plot, no save."
 
-    except ValueError, TypeError:
+    except ValueError:
         print "Sorted by gamma beam emittance: "+ \
                "Analysis cannot be done because particles are not detected. "
         mid_bin = None
@@ -753,9 +740,6 @@ def beam_emittance( frame_num, chosen_particles, qdict, direction,
 
         w_x = np.mean(x)
         w_ux = np.mean(ux)
-        z_array = np.arange(np.shape(x)[0])
-        selected_array = np.compress(w != 0., z_array )
-        nz_w = np.take(w, selected_array)
         xux = np.sum(x*ux)/(np.shape(x)[0])
         variance_x = np.var(x)
         variance_ux = np.var(ux)
@@ -768,7 +752,7 @@ def beam_emittance( frame_num, chosen_particles, qdict, direction,
                 num_bins = int(1e6* (np.max(ux) - np.min(ux))\
                                     *(np.max(x) - np.min(x)))
 
-            H,xedges,yedges = np.histogram2d( ux, x,
+            H, xedges, yedges = np.histogram2d( ux, x,
                                               bins = num_bins, weights = w)
             H = np.rot90(H)
             H = np.flipud(H)
@@ -815,9 +799,8 @@ def beam_emittance( frame_num, chosen_particles, qdict, direction,
                             aspect= "auto", interpolation ='nearest',
                             origin ='lower', cmap = cm_peak))
                 colorbar_pos_peak = fig.add_axes([0.9, 0.12, 0.025, 0.78])
-                ax_colorbar_peak = fig.colorbar(sc_peak,
-                                                cax = colorbar_pos_peak,
-                                                orientation='vertical')
+                fig.colorbar(sc_peak, cax = colorbar_pos_peak,
+                             orientation='vertical')
                 #ax.plot(bin_x*1e6, n_x, color="blue",linewidth=2)
                 #ax.plot(n_ux, bin_ux, color="blue", linewidth=2)
                 ax.set_xlabel(r"$\mathrm{%s\,(\mu m)}$" %direction)

@@ -1,13 +1,11 @@
-import os
 import random
-from scipy.constants import e, c, m_e
+from scipy.constants import e
 import math
 import numpy as np
 from file_handling import FileWriting
 import pylab as plt
 import config
 import matplotlib
-import pdb
 
 def quant_concatenate ( array_obj_quant , keep_object_name = False ):
 
@@ -359,7 +357,7 @@ def savitzkyGolay( y, window_size, order, deriv=0, rate=1 ):
     try:
         window_size = abs(int(window_size))
         order = abs(int(order))
-    except ValueError, msg:
+    except ValueError:
         raise ValueError("window_size and order have to be of type int")
 
     if window_size % 2 != 1 or window_size < 1:
@@ -446,7 +444,7 @@ def bigPicture( frame_num, p_z, p_gamma, p_w, f_z, f_wake, f_laser,
         sc_peak = ax.imshow( Hmasked, extent = extent, interpolation='nearest',
                         origin='lower', cmap=cm_peak, aspect = "auto")
         colorbar_pos_peak = fig.add_axes([0.9,0.118,.025,.782])
-        ax_colorbar_peak = fig.colorbar(sc_peak, cax =colorbar_pos_peak,
+        fig.colorbar(sc_peak, cax =colorbar_pos_peak,
                             orientation = 'vertical')
 
         # Writing the particle
