@@ -47,6 +47,7 @@ class ParticleInstant():
         self.num_quantities = 0
         self.qdict = {}
 
+        self.pandas = False
         if "pandas" in sys.modules.keys():
             self.pandas = True
             frame = []

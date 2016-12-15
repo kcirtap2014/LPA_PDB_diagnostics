@@ -29,9 +29,11 @@ class FieldInstant():
         with open( filename ) as pickle_file:
             tmf = pickle.load( pickle_file )
 
+        self.pandas = False
         if "pandas" in sys.modules.keys():
-            self.pandas = False
+            self.pandas = True
             frame = []
+
         for quantity in self.quantities:
             if quantity == "E":
                 self.ex = np.array(tmf["ex"])
