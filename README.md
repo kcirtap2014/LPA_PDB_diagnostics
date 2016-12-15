@@ -3,7 +3,7 @@ LPA PDB diagnostics is a tool that allows data analysis for PIC simulations for 
 Notebooks are provided to make analysis faster and give a sense of big picture.
 
 ## Installation
-Installation is simple. You just have to type on your command line: ```python setup.py install```
+Installation is simple. Clone this git to your local computer, then install it by typing on your command line: ```python setup.py install```
 
 ## Usage
 First, copy the two notebooks to your simulation directory (same level as the /data) or if you prefer just change the variable "dir path" in the notebook and point it to where your pdb data are stored. 
