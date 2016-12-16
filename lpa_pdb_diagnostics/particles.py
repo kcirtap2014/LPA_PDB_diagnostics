@@ -5,7 +5,7 @@ import sys
 from scipy.constants import e
 from scipy.signal import find_peaks_cwt
 from generics import gamma2Energy, leftRightFWHM, \
-                     bilinearInterpolation, w2charge
+                     bilinearInterpolation, w2charge, wstd
 import config
 from pylab import plt
 from file_handling import FileWriting
@@ -538,7 +538,7 @@ def sorted_by_gamma_beam_emittance ( frame_num, chosen_particles, qdict,
 
     Paramaters:
     -----------
-    num_frame: int
+    frame_num: int
         frame number, for writing purpose
 
     chosen_particles: ndarray
@@ -640,6 +640,54 @@ def sorted_by_gamma_beam_emittance ( frame_num, chosen_particles, qdict,
 
     return mid_bin, emit
 
+def beam_divergence( chosen_particles, qdict, direction ):
+    """
+    Calculate the divergence of the selected particles.
+
+    Parameters:
+    -----------
+    chosen_particles: ndarray
+        consists of quantities of selected particles
+
+    qdict: dict
+        dictionary that contains the correspondance to the array
+        "chosen particles" indices
+
+    direction: string
+        transverse directions. Can be either "x" or "y"
+
+    Returns
+    -------
+    div: float
+        - divergence in the selected direction in rad
+    """
+
+    try:
+        #do analysis according to the direction
+        if direction == "x":
+            ux = chosen_particles[qdict["ux"]]
+
+        elif direction =="y":
+            ux = chosen_particles[qdict["uy"]]
+
+        else:
+            raise "Invalid direction"
+
+        w = chosen_particles[qdict["w"]]
+        uz = chosen_particles[qdict["uz"]]
+
+        # Calculate divergence
+        div = wstd( np.arctan2(ux, uz), w )
+
+    except ValueError:
+        print "Beam divergence: Analysis is not performed because" + \
+              "no particles are detected."
+        div = 0.0
+
+    # Return the result
+    return ( div )
+
+
 def emittance_1D ( x, ux, w ):
     """
     returns the 1D histogam of both axes of the phase space plot, position and
@@ -699,6 +747,9 @@ def beam_emittance( frame_num, chosen_particles, qdict, direction,
 
     Parameters:
     -----------
+    frame_num: int
+        frame number, for writing purpose
+
     chosen_particles: ndarray
         consists of quantities of selected particles
 
@@ -739,12 +790,9 @@ def beam_emittance( frame_num, chosen_particles, qdict, direction,
 
         w = chosen_particles[qdict["w"]]
 
-        w_x = np.mean(x)
-        w_ux = np.mean(ux)
-        xux = np.sum(x*ux)/(np.shape(x)[0])
-        variance_x = np.var(x)
-        variance_ux = np.var(ux)
-        covariance_xux = xux - w_x*w_ux
+        variance_x = wstd( x, w )
+        variance_ux = wstd( ux, w )
+        covariance_xux = np.average( x*ux, weights = w)
         xuxw = [[variance_x,covariance_xux],[covariance_xux,variance_ux]]
         weighted_emittance = np.sqrt(np.linalg.det(xuxw))
 
