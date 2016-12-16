@@ -4,6 +4,7 @@ import sys
 from scipy.constants import e, c, m_e
 from generics import findRoot, savitzkyGolay, wstd
 from file_handling import FileWriting
+import pdb
 
 class FieldInstant():
 
@@ -59,7 +60,7 @@ class FieldInstant():
 
         elif laser_pol == 0:
             self.laser_field = self.ex
- 
+
     def laser_envelop( self , lwrite = False):
         """
         returns the laser envelop
@@ -72,10 +73,15 @@ class FieldInstant():
         envelop : 1D numpy array
             the amplitude of the envelop with respect to z_envelop
         """
+        
+        # we take only  zfield>0
+        index = np.compress(self.zfield >=0 , np.arange(len(self.zfield)))
+        zfield = self.zfield[index]
+        t_laser_field_1D = self.laser_field[int(self.shape[0]/2),:]
+        laser_field_1D = t_laser_field_1D[index]
 
-        laser_field_1D = self.laser_field[int(self.shape[0]/2),:]
-
-        roots = findRoot( laser_field_1D, self.zfield )
+        # looking for zero crossing of the laser field
+        roots = findRoot( laser_field_1D, zfield )
         envelop = []
         z_envelop = []
 
@@ -86,9 +92,9 @@ class FieldInstant():
             begin_index = 0
 
         for i in range ( begin_index, len(roots)-1, 2 ):
-            ind = np.compress( np.logical_and(self.zfield >= roots[i],
-            self.zfield <= roots[ i+1 ]), np.arange(len(self.zfield)) )
-            z_temp = np.take( self.zfield, ind )
+            ind = np.compress( np.logical_and(zfield >= roots[i],
+             zfield <= roots[ i+1 ]), np.arange(len(zfield)) )
+            z_temp = np.take( zfield, ind )
             laser_max = np.take( laser_field_1D, ind )
             ind2 = np.argmax( laser_max )
             z_envelop.append( z_temp[ ind2 ] )
