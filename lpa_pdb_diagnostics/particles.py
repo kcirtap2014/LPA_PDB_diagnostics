@@ -776,7 +776,7 @@ def beam_emittance( frame_num, chosen_particles, qdict, direction,
     """
 
     try:
-        #do analysis according to the direction
+        # do analysis according to the direction
         if direction == "x":
             x = chosen_particles[qdict["x"]]
             ux = chosen_particles[qdict["ux"]]
@@ -790,11 +790,17 @@ def beam_emittance( frame_num, chosen_particles, qdict, direction,
 
         w = chosen_particles[qdict["w"]]
 
-        variance_x = wstd( x, w )
-        variance_ux = wstd( ux, w )
-        covariance_xux = np.average( x*ux, weights = w)
-        xuxw = [[variance_x,covariance_xux],[covariance_xux,variance_ux]]
-        weighted_emittance = np.sqrt(np.linalg.det(xuxw))
+        # Calculate the emittance
+        xsq = np.average( x ** 2, weights=w )
+        uxsq = np.average( ux ** 2, weights=w )
+        xux = np.average( x * ux, weights=w )
+        weighted_emittance = np.sqrt( xsq * uxsq - xux ** 2 )
+        # Old version, has to be revised
+        #variance_x = wstd( x, w )
+        #variance_ux = wstd( ux, w )
+        #covariance_xux = np.average( x*ux, weights = w)
+        #xuxw = [[variance_x,covariance_xux],[covariance_xux,variance_ux]]
+        #weighted_emittance = np.sqrt(np.linalg.det(xuxw))
 
         if histogram:
             if num_bins == None:
@@ -871,6 +877,11 @@ def beam_emittance( frame_num, chosen_particles, qdict, direction,
             weighted_emittance = 0.0
 
     except ValueError:
+        print "Beam emittance: Analysis is not performed because" + \
+              "no particles are detected."
+        weighted_emittance = 0.0
+
+    except ZeroDivisionError:
         print "Beam emittance: Analysis is not performed because" + \
               "no particles are detected."
         weighted_emittance = 0.0

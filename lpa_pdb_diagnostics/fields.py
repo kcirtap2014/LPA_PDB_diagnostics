@@ -5,13 +5,6 @@ from scipy.constants import e, c, m_e
 from generics import findRoot, savitzkyGolay, wstd
 from file_handling import FileWriting
 
-try:
-    import pandas as pd
-except ImportError:
-    print "If you wish to use pandas to manipulate your data, \
-    please install the module follwing the instruction on this website \ http://pandas.pydata.org/pandas-docs/stable/install.html"
-    pass
-
 class FieldInstant():
 
     """
@@ -29,69 +22,31 @@ class FieldInstant():
         with open( filename ) as pickle_file:
             tmf = pickle.load( pickle_file )
 
-        self.pandas = False
-        if "pandas" in sys.modules.keys():
-            self.pandas = True
-            frame = []
-
         for quantity in self.quantities:
             if quantity == "E":
                 self.ex = np.array(tmf["ex"])
                 self.ey = np.array(tmf["ey"])
                 self.ez = np.array(tmf["ez"])
 
-                if self.pandas:
-                    ##Problem: arrays are in 2D can't be read by pandas
-                    efields = pd.DataFrame({"ex": self.ex,
-                                        "ey": self.ey,
-                                        "ez": self.ez})
-                    frame.append( efields )
-
             if quantity == "zfield":
                 self.zfield = np.array(tmf["z"][:-1])
-
-                if self.pandas:
-                    zfield = pd.DataFrame({"z": self.zfield})
-                    frame.append( zfield )
 
             if quantity == "B":
                 self.bx = np.array(tmf["bx"])
                 self.by = np.array(tmf["by"])
                 self.bz = np.array(tmf["bz"])
 
-                if self.pandas:
-                    bfields = pd.DataFrame({"bx": self.bx,
-                                        "by": self.by,
-                                        "bz": self.bz})
-                    frame.append( bfields )
-
             if quantity == "densH":
                 self.dens = np.array(tmf["dens"])
-
-                if self.pandas:
-                    densH = pd.DataFrame({"densH": self.densH})
-                    frame.append( densH )
 
             if quantity == "densN5":
                 self.densN5 = np.array(tmf["dens5"])
 
-                if self.pandas:
-                    densN5 = pd.DataFrame({"densN5": self.densN5})
-                    frame.append( densN5 )
-
             if quantity == "densN6":
                 self.densN6 = np.array(tmf["dens6"])
 
-                if self.pandas:
-                    densN6 = pd.DataFrame({"densN6": self.densN6})
-                    frame.append( densN6 )
-
             if quantity == "densN7":
                 self.densN7 = np.array(tmf["dens7"])
-
-                if self.pandas:
-                    densN7 = pd.DataFrame({"densN7": self.densN7})
-                    frame.append( densN7 )
 
         # self.extent contains information on the row and column
         row, col = np.shape(self.ez)
@@ -104,10 +59,7 @@ class FieldInstant():
 
         elif laser_pol == 0:
             self.laser_field = self.ex
-
-        if self.pandas:
-            self.df = pd.concat(frame, axis = 1 )
-
+ 
     def laser_envelop( self , lwrite = False):
         """
         returns the laser envelop
