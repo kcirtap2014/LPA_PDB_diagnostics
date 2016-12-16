@@ -877,12 +877,12 @@ def beam_emittance( frame_num, chosen_particles, qdict, direction,
             weighted_emittance = 0.0
 
     except ValueError:
-        print "Beam emittance: Analysis is not performed because" + \
+        print "Beam emittance: Analysis is not performed because " + \
               "no particles are detected."
         weighted_emittance = 0.0
 
     except ZeroDivisionError:
-        print "Beam emittance: Analysis is not performed because" + \
+        print "Beam emittance: Analysis is not performed because " + \
               "no particles are detected."
         weighted_emittance = 0.0
 
