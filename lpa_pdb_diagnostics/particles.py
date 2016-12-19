@@ -791,10 +791,16 @@ def beam_emittance( frame_num, chosen_particles, qdict, direction,
         w = chosen_particles[qdict["w"]]
 
         # Calculate the emittance
-        xsq = np.average( x ** 2, weights=w )
-        uxsq = np.average( ux ** 2, weights=w )
-        xux = np.average( x * ux, weights=w )
+        xavg = np.average( x , weights = w )
+        uxavg = np.average( ux, weights = w )
+        xsq = np.average( (x - xavg)** 2, weights = w )
+        uxsq = np.average( (ux - uxavg)** 2, weights = w )
+        xux = np.average( (x - xavg) * (ux - uxavg), weights = w )
         weighted_emittance = np.sqrt( xsq * uxsq - xux ** 2 )
+        #xsq = np.average( x ** 2, weights=w )
+        #uxsq = np.average( ux ** 2, weights=w )
+        #xux = np.average( x * ux, weights=w )
+        #weighted_emittance = np.sqrt( xsq * uxsq - xux ** 2 )
         # Old version, has to be revised
         #variance_x = wstd( x, w )
         #variance_ux = wstd( ux, w )
