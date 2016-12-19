@@ -54,7 +54,7 @@ class ParticleInstant():
 
         for quantity in self.quantities:
             if quantity == "PID":
-                self.ssn = np.array(tmp["ssnum"]).astype(int)
+                self.ssn = np.array(tmp["ssnum"])#.astype(int)
                 self.qdict["PID"] = self.num_quantities
                 self.num_quantities += 1
                 if self.pandas:

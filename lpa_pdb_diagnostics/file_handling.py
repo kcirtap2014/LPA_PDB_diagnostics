@@ -109,6 +109,8 @@ class FileWriting():
 
                 dset[:] = data[indexq]
 
+        self.file_object.close()
+
     def read ( self ):
 
         f = h5py.File(config.result_path + self.fname, 'r')
