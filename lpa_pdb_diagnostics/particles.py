@@ -11,7 +11,7 @@ from pylab import plt
 from file_handling import FileWriting
 import matplotlib
 import cubehelix
-
+import pdb
 try:
     import pandas as pd
 except ImportError:
@@ -151,13 +151,14 @@ class ParticleInstant():
         This method selects the particles according to the energy and
         region of interest
         Example of usage:
-            Instant.filter(gamma = [50, 100], ROI = [2000e-6, 3000e-6])
+            Instant.select(gamma = [50, 100], ROI = [2000e-6, 3000e-6])
             Particles that meet these cited conditions will be chosen.
 
         Parameters:
         -----------
         gamma: a 1D array of shape 2
             consists of the lower bound and the upper bound in gamma
+
         ROI : a 1D array of shape 2
             consists of the lower bound and the upper bound in terms of
             position
@@ -299,7 +300,7 @@ def beam_charge( w ):
         s_charge = w2charge(w)
         charge = np.sum(s_charge)
     except ValueError:
-        charge = 0.0
+        charge = np.NaN
 
     return charge
 
@@ -416,8 +417,8 @@ def beam_spectrum( frame_num, gamma, w, lwrite = False,
 
     except ValueError:
         print "Check if the particle arrays are empty."
-        energy = []
-        dQdE = []
+        energy = np.NaN
+        dQdE = np.NaN
 
     return energy, dQdE
 
@@ -525,14 +526,14 @@ def beam_energy_spread( energy, dQdE, lfwhm = True, peak = None ):
 
     except ZeroDivisionError:
         print "Error in energy spread calculation"
-        deltaE = None
-        deltaEE = None
+        deltaE = np.NaN
+        deltaEE = np.NaN
 
     return deltaE, deltaEE
 
 def sorted_by_gamma_beam_emittance ( frame_num, chosen_particles, qdict,
-                                    direction, num_bins = None, lwrite = True,
-                                    lplot = False, lsavefig = False ):
+                                    direction, species = None, num_bins = None,
+                                    lwrite = True, lplot = False, lsavefig = False ):
     """
     runs an analysis on beam emittance with respect to gamma
 
@@ -543,6 +544,9 @@ def sorted_by_gamma_beam_emittance ( frame_num, chosen_particles, qdict,
 
     chosen_particles: ndarray
         consists of quantities of selected particles
+
+    species: string
+        species name for writing purpose. Default: None
 
     qdict: dict
         dictionary that contains the correspondance to the array
@@ -579,38 +583,43 @@ def sorted_by_gamma_beam_emittance ( frame_num, chosen_particles, qdict,
 
         gamma = chosen_particles[qdict["gamma"]]
 
-        # By default, gamma = 2 in a bin
+        # By default, Δgamma = 2 in a bin
         num_bins = int( (np.max(gamma) - np.min(gamma))/2 )
 
-        #Reconstruct the step
+        # Reconstruct the step
         steps = np.linspace(np.min(gamma), np.max(gamma), num = num_bins)
         mid_bin = (steps[0:-1] + steps[1:])/2
         bin_shape = np.shape(mid_bin)[0]
 
-        #Initialize an empty array of emittance
+        # Initialize an empty array of emittance
         emit = np.empty( bin_shape )
 
-        ##Binning the gamma and analyze the emittance for each bin
+        # Binning the gamma and analyze the emittance for each bin
         for b in xrange( bin_shape ):
             index = np.compress( np.logical_and(gamma >= steps[b],
                 gamma < steps[b+1]), np.arange(len(gamma)))
             bin_chosen_particles = np.take(chosen_particles, index, axis=1)
             emit[b] = beam_emittance( frame_num, bin_chosen_particles,
                                       qdict, direction )
+        # attributing names to files
+        if species is not None:
+            sp_name = species
+        else:
+            sp_name = "all"
 
         if lwrite:
             qname = ["gamma", "emittance"]
-            f = FileWriting( qname , "sorted_beam_emittance_%s_%d" \
-                            %(direction, frame_num ))
+            f = FileWriting( qname , "sorted_beam_emittance_%s_%s_%d" \
+                            %(direction, sp_name, frame_num ))
             stacked_data = np.stack( (mid_bin, emit), axis = 0 )
             f.write( stacked_data, np.shape(stacked_data) ,
                     attrs = [ "arb. units", "m.rad" ])
 
         if lplot:
             if 'inline' in matplotlib.get_backend():
-                fig, ax = plt.subplots(dpi=150)
+                fig, ax = plt.subplots( dpi=150 )
             else:
-                fig, ax = plt.subplots( dpi = 500 )
+                fig, ax = plt.subplots( figsize = (10,8) )
 
             fig.patch.set_facecolor('white')
 
@@ -626,8 +635,8 @@ def sorted_by_gamma_beam_emittance ( frame_num, chosen_particles, qdict,
 
             if lsavefig:
                 fig.savefig( config.result_path + \
-                            "sorted_beam_emittance_%s_%d.png" \
-                            %(direction, frame_num ))
+                            "sorted_beam_emittance_%s_%s_%d.png" \
+                            %(direction, sp_name, frame_num ))
 
         if not lplot and lsavefig:
             print "Sorry, no plot, no save."
@@ -635,8 +644,8 @@ def sorted_by_gamma_beam_emittance ( frame_num, chosen_particles, qdict,
     except ValueError:
         print "Sorted by gamma beam emittance: "+ \
                "Analysis cannot be done because particles are not detected. "
-        mid_bin = None
-        emit = None
+        mid_bin = np.NaN
+        emit = np.NaN
 
     return mid_bin, emit
 
@@ -682,7 +691,7 @@ def beam_divergence( chosen_particles, qdict, direction ):
     except ValueError:
         print "Beam divergence: Analysis is not performed because" + \
               "no particles are detected."
-        div = 0.0
+        div = np.NaN
 
     # Return the result
     return ( div )
@@ -735,9 +744,9 @@ def emittance_1D ( x, ux, w ):
 
     return n_x, bin_x, n_ux, bin_ux
 
-def beam_emittance( frame_num, chosen_particles, qdict, direction,
-                    histogram = False, num_bins = None, lplot = False,
-                    lsavefig = False, lwrite = False ):
+def beam_emittance( frame_num, chosen_particles, qdict, direction, species = None,
+                    histogram = False, num_bins_x = None, num_bins_ux = None,
+                    lplot = False, lsavefig = False, lwrite = False ):
     """
     Calculation on emittance based on statistical approach in J. Buon (LAL)
     Beam phase space and Emittance. We first calculate the covariance, and
@@ -759,6 +768,9 @@ def beam_emittance( frame_num, chosen_particles, qdict, direction,
 
     direction: string
         transverse directions. Can be either "x" or "y"
+
+    species: string
+        species name for writing purpose. Default: None
 
     lsavefig: boolean
         Save figure of the emittance distribution if True. Default: False
@@ -809,28 +821,46 @@ def beam_emittance( frame_num, chosen_particles, qdict, direction,
         #weighted_emittance = np.sqrt(np.linalg.det(xuxw))
 
         if histogram:
-            if num_bins == None:
-                num_bins = int(1e6* (np.max(ux) - np.min(ux))\
-                                    *(np.max(x) - np.min(x)))
 
-            H, xedges, yedges = np.histogram2d( ux, x,
-                                              bins = num_bins, weights = w)
+            # Centralized quantities
+            centralized_x = x - xavg
+            centralized_ux = ux - uxavg
+
+            if num_bins_x == None:
+                # default bin_size: in x = 0.05e-6, in ux= 0.05
+                num_bins_x = int(50e6*(np.max(centralized_x) \
+                                - np.min(centralized_x)))
+                num_bins_ux = int((20*np.max(centralized_ux) \
+                                - np.min(centralized_ux)))
+
+            H, xedges, yedges = np.histogram2d( centralized_ux, centralized_x,
+                                              bins = (num_bins_x, num_bins_ux),
+                                              weights = w, normed = True)
             H = np.rot90(H)
             H = np.flipud(H)
-            Hmasked = np.ma.masked_where( H == 0, H )
-            Hnorm = Hmasked/np.amax(np.amax( Hmasked ))
-            extent = np.array([ np.min(x), np.max(x), np.min(ux), np.max(ux) ])
+            Hnorm = np.ma.masked_where( H == 0, H )
+            #Hnorm = Hmasked/np.amax(np.amax( Hmasked ))
+            extent = np.array([ np.min(centralized_x), np.max(centralized_x),
+                                np.min(centralized_ux), np.max(centralized_ux) ])
 
             # 1D emittances
             #n_x, bin_x, n_ux, bin_ux = emittance_1D ( x, ux, w )
 
+            # attributing names to files
+            if species is not None:
+                sp_name = species
+            else:
+                sp_name = "all"
+
             if lwrite:
                 #Writing histogram data
                 qname_particle = [ "emittance" , "extent" ]
-                fh = FileWriting( qname_particle , "Histogram_emittance_%s_%d" \
-                                    %( direction,frame_num ))
+
+                fh = FileWriting( qname_particle , "Histogram_emittance_%s_%s_%d" \
+                                    %( direction, sp_name, frame_num ))
                 data = [Hnorm.data] + [extent]
-                fh.write( data, np.shape(data) , attrs = ["m", "m_e*c"])
+                fh.write( data, np.shape(data) , attrs = ["bin density",
+                          "m in position, m_e*c in momentum"])
 
                 #Writing 1D data
 
@@ -850,12 +880,14 @@ def beam_emittance( frame_num, chosen_particles, qdict, direction,
                 if 'inline' in matplotlib.get_backend():
                     fig, ax = plt.subplots( dpi=150 )
                 else:
-                    fig, ax = plt.subplots( dpi=500 )
+                    fig, ax = plt.subplots(figsize=(10,8))
 
                 fig.patch.set_facecolor('white')
                 cm_peak = cubehelix.cmap( rot = -0.8,  reverse = True )
-                plot_extent = [ np.min(x)*1e6, np.max(x)*1e6,
-                                np.min(ux), np.max(ux) ]
+                plot_extent = [ np.min(centralized_x)*1e6,
+                                np.max(centralized_x)*1e6,
+                                np.min(centralized_ux),
+                                np.max(centralized_ux) ]
                 sc_peak = (ax.imshow( Hnorm, extent = plot_extent,
                             aspect= "auto", interpolation ='nearest',
                             origin ='lower', cmap = cm_peak))
@@ -864,8 +896,11 @@ def beam_emittance( frame_num, chosen_particles, qdict, direction,
                              orientation='vertical')
                 #ax.plot(bin_x*1e6, n_x, color="blue",linewidth=2)
                 #ax.plot(n_ux, bin_ux, color="blue", linewidth=2)
-                ax.set_xlabel(r"$\mathrm{%s\,(\mu m)}$" %direction)
-                ax.set_ylabel(r"$\mathrm{p_%s\,(m_{e}c)}$" %direction)
+                ax.set_xlabel(r"$\mathrm{%s - <%s>\,(\mu m)}$"
+                                %(direction, direction) )
+                ax.set_ylabel(r"$\mathrm{p_%s - <p_%s>\,(m_{e}c)}$"
+                                %(direction,direction) )
+                ax.set_title(r"$%s\,electrons$" %sp_name)
                 ax.xaxis.set_tick_params(width=2, length = 8)
                 ax.yaxis.set_tick_params(width=2, length = 8)
                 font = {'family':'sans-serif'}
@@ -873,23 +908,23 @@ def beam_emittance( frame_num, chosen_particles, qdict, direction,
 
                 if lsavefig:
                     fig.savefig( config.result_path + \
-                                 "emittance_distribution_%s_%d.png" \
-                                 %( direction, frame_num ))
+                                 "emittance_distribution_%s_%s_%d.png" \
+                                 %( direction, sp_name, frame_num ))
 
             if not lplot and lsavefig:
                 print "Sorry, no plot, no save."
 
         if math.isnan(weighted_emittance):
-            weighted_emittance = 0.0
+            weighted_emittance = np.NaN
 
     except ValueError:
         print "Beam emittance: Analysis is not performed because " + \
               "no particles are detected."
-        weighted_emittance = 0.0
+        weighted_emittance = np.NaN
 
     except ZeroDivisionError:
         print "Beam emittance: Analysis is not performed because " + \
               "no particles are detected."
-        weighted_emittance = 0.0
+        weighted_emittance = np.NaN
 
-    return weighted_emittance
+    return ( weighted_emittance )

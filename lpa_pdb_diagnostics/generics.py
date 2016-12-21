@@ -273,6 +273,33 @@ def findRoot( y, x ):
 
     return roots
 
+def wavg( a , weights ):
+    """
+    Calculate the weighted average.
+
+    Paramters:
+    ----------
+    a : array_like
+        Calculate the weighted average for these a.
+
+    weights : array_like
+        An array of weights for the values in a.
+
+    Returns:
+    --------
+    w_avg: float
+        Weighted average of
+    """
+    # Check if input contains data
+    if not np.any(weights) and not np.any(a):
+        # If input is empty return NaN
+        return np.nan
+    else:
+        # Calculate the weighted standard deviation
+        w_avg = np.average(a, weights = weights)
+
+        return( w_avg )
+
 def wstd( a, weights ):
     """
     Calcualte the weighted standard deviation.
@@ -296,8 +323,8 @@ def wstd( a, weights ):
         return np.nan
     else:
         # Calculate the weighted standard deviation
-        average = np.average(a, weights=weights)
-        variance = np.average((a-average)**2, weights=weights)
+        average = wavg(a, weights = weights)
+        variance = np.average((a-average)**2, weights = weights)
         return( np.sqrt(variance) )
 
 def savitzkyGolay( y, window_size, order, deriv=0, rate=1 ):
@@ -431,7 +458,7 @@ def bigPicture( frame_num, p_z, p_gamma, p_w, f_z, f_wake, f_laser,
     if 'inline' in matplotlib.get_backend():
         fig, ax = plt.subplots( dpi = 150 )
     else:
-        fig,ax = plt.subplots( dpi = 300 )
+        fig,ax = plt.subplots( figsize=( 10, 8 ) )
 
     fig.patch.set_facecolor('white')
     cm_peak = plt.cm.get_cmap('RdBu')
