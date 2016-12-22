@@ -12,6 +12,7 @@ from file_handling import FileWriting
 import matplotlib
 import cubehelix
 import pdb
+
 try:
     import pandas as pd
 except ImportError:
@@ -23,7 +24,8 @@ except ImportError:
 class ParticleInstant():
 
     def __init__(self, filename,
-            quantities = ["PID", "Weight", "Position", "Momentum", "E", "B"]):
+            quantities = ["PID", "Weight", "Position", "Momentum", "E", "B"],
+            presence_sw = None ):
         """
         Initialize an instant of particles.
 
@@ -32,8 +34,14 @@ class ParticleInstant():
 
         file: a string
             Name of the file including the path
+
         quantities: a 1D array
             Specify the particle quantities to be initialized
+
+        presence_sw: float
+            in some simulations, we have used getw() instead of getweigts()
+            If getw() is used, then sw is normally saved in warp simulation and
+            it has to be included in beam weight calculation. Default: None
 
         """
 
@@ -62,7 +70,9 @@ class ParticleInstant():
                     frame.append(PID)
 
             if quantity == "Weight":
-                self.w = np.array(tmp["w"])#*tmp(sw)
+                self.w = np.array(tmp["w"])
+                if presence_sw is not None:
+                    self.w *= presence_sw
                 self.qdict["w"] = self.num_quantities
                 self.num_quantities += 1
                 if self.pandas:
