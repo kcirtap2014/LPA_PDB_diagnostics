@@ -3,9 +3,11 @@ from scipy.constants import e
 import math
 import numpy as np
 from file_handling import FileWriting
+from scipy import sparse
 import pylab as plt
 import config
 import matplotlib
+import pdb
 
 def quant_concatenate ( array_obj_quant , keep_object_name = False ):
 
@@ -46,6 +48,200 @@ def quant_concatenate ( array_obj_quant , keep_object_name = False ):
         c_object[iquant] = temp
 
     return c_object
+
+def ALSS_baseline ( y, lmbda, p ):
+    """
+    This method is not totally tested yet.
+    performs baseline correction with asymmetric least squares smoothing (ALSS).
+
+    Parameters:
+    -----------
+    y: 1D numpy array
+        an array of signal
+
+    lmbda: float value
+        parameter for smoothness. Bes to have values in [10^2:10^9]
+
+    p: float value
+        parameter for assymetry. Best to have values in [0.001:0.1]
+
+    Returns
+    -------
+    y_res: 1D numpy array
+        an array of signal with its baseline subtracted
+    """
+
+    # an approximate solution
+    m = len(y)
+    diff2 = np.diff( np.eye(m), n=2 )
+    weight = np.ones( m ) #weight
+    epsilon = np.ones( (m,1) )*1e-7 # test for convergence
+
+    for i in xrange(4):
+        weight = np.diag( weight )
+        y_array = np.array( y )
+        factor =  np.linalg.cholesky(weight + \
+                    lmbda*np.dot( diff2, np.transpose(diff2) ))
+
+        z = np.diag(np.linalg.inv(np.dot(factor,
+            np.transpose(factor)))*np.dot(weight , y_array))
+
+        z_array = np.array( z )
+        weight = p*( y_array>z_array ) + (1 - p)*( y_array<z_array )
+
+    return z
+
+def peak_indexes(y, thres=0.3, min_dist=1):
+    """Peak detection routine.
+
+    Finds the peaks in *y* by taking its first order difference. By using
+    *thres* and *min_dist* parameters, it is possible to reduce the number of
+    detected peaks. *y* must be signed.
+
+    Parameters
+    ----------
+    y : ndarray (signed)
+        1D amplitude data to search for peaks.
+    thres : float between [0., 1.]
+        Normalized threshold. Only the peaks with amplitude higher than the
+        threshold will be detected.
+    min_dist : int
+        Minimum distance between each detected peak. The peak with the highest
+        amplitude is preferred to satisfy this constraint.
+
+    Returns
+    -------
+    ndarray
+        Array containing the indexes of the peaks that were detected
+    """
+
+    if isinstance(y, np.ndarray) and np.issubdtype(y.dtype, np.unsignedinteger):
+        raise ValueError("y must be signed")
+
+    thres = thres * (np.max(y) - np.min(y)) + np.min(y)
+    min_dist = int(min_dist)
+
+    # compute first order difference
+    dy = np.diff(y)
+
+    # propagate left and right values successively to fill all plateau pixels (0-value)
+    zeros,=np.where(dy == 0)
+
+    while len(zeros):
+        # add pixels 2 by 2 to propagate left and right value onto the zero-value pixel
+        zerosr = np.hstack([dy[1:], 0.])
+        zerosl = np.hstack([0., dy[:-1]])
+
+        # replace 0 with right value if non zero
+        dy[zeros]=zerosr[zeros]
+        zeros,=np.where(dy == 0)
+
+        # replace 0 with left value if non zero
+        dy[zeros]=zerosl[zeros]
+        zeros,=np.where(dy == 0)
+
+    # find the peaks by using the first order difference
+    peaks = np.where((np.hstack([dy, 0.]) < 0.)
+                     & (np.hstack([0., dy]) > 0.)
+                     & (y > thres))[0]
+
+    if peaks.size > 1 and min_dist > 1:
+        highest = peaks[np.argsort(y[peaks])][::-1]
+        rem = np.ones(y.size, dtype=bool)
+        rem[peaks] = False
+
+        for peak in highest:
+            if not rem[peak]:
+                sl = slice(max(0, peak - min_dist), peak + min_dist + 1)
+                rem[sl] = True
+                rem[peak] = False
+
+        # only take position that is False in the rem array
+        peaks = np.arange(y.size)[~rem]
+
+    return peaks
+
+def ROI_by_peak( y, x, xleft, xright, epsilon , plot_ROI_search ):
+    """
+    returns the ROI that defines the peak based on the variation of the gradient
+    of the signal.
+
+    Parameters:
+    -----------
+    y: 1D numpy array
+        y-coordinate of the filtered signal with savitzkyGolay (preferably)
+
+    x: 1D numpy array
+        x-coordiante of the signal
+
+    xleft: float
+        value of x at FWHM on the LHS of the peak
+
+    xright: float
+        value of x at FWHM on the RHS of the peak
+
+    epsilon: float
+        value of tolerance. A parameter of control.
+
+    plot_ROI_search: boolean
+        either to show how the algorithm search for the acceptable epsilon.
+
+    Returns:
+    --------
+    xleft: float
+        x-coordinate value that indicates the inferior limit of the peak
+
+    xright: float
+        x-coordinate value that indicates the superior limit of the peak
+    """
+
+    gradient = np.gradient( y ) #calculate the gradient
+    abs_norm_grad = np.absolute( gradient/np.max( y ) )
+    indexleft = np.array([])
+    indexright = np.array([])
+    # if indexleft and indexright both have no element, reduce the epsilon and
+    # keep looking
+
+    while not(indexleft.size > 0 and indexright.size) > 0:
+        indexleft =  np.compress( np.logical_and( x < xleft,
+                                abs_norm_grad < epsilon), np.arange(len(x)) )
+        indexright =  np.compress( np.logical_and(x > xright,
+                                abs_norm_grad < epsilon), np.arange(len(x)) )
+        epsilon*=5
+
+    x_interval = [x[indexleft[-1]], x[indexright[0]]]
+
+    if plot_ROI_search: #this plot is for illustrative purpose
+        lab = [r"$|diff|$", r"$\epsilon$"]
+
+        if 'inline' in matplotlib.get_backend():
+            fig, ax = plt.subplots(dpi=150)
+        else:
+            fig, ax = plt.subplots( figsize=(10,8) )
+
+        fig.patch.set_facecolor('white')
+        ax.semilogy( x, abs_norm_grad, linewidth = 2, label = lab[0] )
+        ax.semilogy( x, epsilon*np.ones(len(x)), linewidth = 2,
+                    label = lab[1], linestyle = "-." )
+        ax.set_xlabel(r"$\mathrm{Energy\, (MeV)}$")
+        ax.set_xlim(min(x), max(x))
+        ax.xaxis.set_tick_params(width=2, length = 8)
+        ax.yaxis.set_tick_params(width=2, length = 8)
+        font = {'family':'sans-serif'}
+        plt.rc('font', **font)
+
+        if lab is not None:
+            # Now add the legend with some customizations.
+            legend = plt.legend(loc='best', shadow=True)
+
+            # Set the fontsize
+            for label in legend.get_texts():
+                label.set_fontsize('large')
+
+            for label in legend.get_lines():
+                label.set_linewidth(1.5)  # the legend line width
+
+    return x_interval
 
 def values ( inf, sup, period_int, period_ext, Lpdz ):
     """
@@ -158,8 +354,8 @@ def leftRightFWHM( yleft, yright, yFWHM, xleft, xright ):
     xleftright: int
     xrightleft: int
     xrightright: int
-    """
 
+    """
     indLeft = np.where(yleft<yFWHM)
     indRight = np.where(yright<yFWHM)
 

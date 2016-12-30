@@ -5,7 +5,8 @@ import sys
 from scipy.constants import e
 from scipy.signal import find_peaks_cwt
 from generics import gamma2Energy, leftRightFWHM, \
-                     bilinearInterpolation, w2charge, wstd
+                     bilinearInterpolation, w2charge, wstd, savitzkyGolay, \
+                     ROI_by_peak, peak_indexes
 import config
 from pylab import plt
 from file_handling import FileWriting
@@ -70,9 +71,11 @@ class ParticleInstant():
                     frame.append(PID)
 
             if quantity == "Weight":
-                self.w = np.array(tmp["w"])
                 if presence_sw is not None:
-                    self.w *= presence_sw
+                    self.w = np.array(tmp["w"])*presence_sw
+                else:
+                    self.w = np.array(tmp["w"])
+
                 self.qdict["w"] = self.num_quantities
                 self.num_quantities += 1
                 if self.pandas:
@@ -427,14 +430,16 @@ def beam_spectrum( frame_num, gamma, w, lwrite = False,
 
     except ValueError:
         print "Check if the particle arrays are empty."
-        energy = np.NaN
-        dQdE = np.NaN
+        energy = None
+        dQdE = None
 
     return energy, dQdE
 
-def beam_peak( energy, dQdE, peak_width = 50.0 ):
+def beam_peak( energy, dQdE, peak_width = 20.0, epsilon = 1e-4, thres =0.3,
+               plot_peak_search = False, plot_ROI_search = False):
     """
-    returns the index of a peak from a beam spectrum
+    returns the index of a peak from a beam spectrum and also the energy
+    interval where the peak is situated.
 
     Parameters:
     -----------
@@ -446,6 +451,21 @@ def beam_peak( energy, dQdE, peak_width = 50.0 ):
 
     peak_width: int
         estimated width of the peak, default value 20 MeV
+
+    thres : float between [0., 1.]
+        Normalized threshold. Only the peaks with amplitude higher than the
+        threshold will be detected.
+
+    epsilon: float
+        tolerance value for energy interval cutoff. Default value: 1e-4
+
+    plot_ROI_search: boolean
+        either to plot the peak searching process, for sanity check.
+        Default value: False
+
+    plot_ROI_search: boolean
+        either to plot the region of interest for the energy interval search.
+        Purely for illustration. Default value: False
 
     Returns:
     --------
@@ -459,15 +479,99 @@ def beam_peak( energy, dQdE, peak_width = 50.0 ):
         Charge density of the located peak(s)
 
     """
-    try:
-        bin_size = energy[1] - energy[0]
-        num_bin_peak_width = int(peak_width/bin_size)
-        peakInd = find_peaks_cwt(dQdE, np.arange(1,num_bin_peak_width))
 
-        return peakInd, energy[peakInd], dQdE[peakInd]
+    bin_size = energy[1] - energy[0]
+    num_bin_peak_width = int(peak_width/bin_size)
 
-    except ValueError:
+    if int(peak_width)%2==0:
+        window = int(peak_width) + 1
+    else:
+        window = int(peak_width)
+
+    # Filter the signal before calling find peak
+    dQdE_filtered = savitzkyGolay( dQdE, window, 2 )
+    #peakInd = find_peaks_cwt( dQdE_filtered, np.arange(1,
+    #                        num_bin_peak_width))
+    peakInd = peak_indexes(dQdE_filtered, thres = thres,
+                            min_dist = num_bin_peak_width)
+    energy_at_peak = energy[peakInd]
+    dQdE_at_peak =  dQdE[peakInd]
+
+    # A peak must have an increasing gradient and a decreasing gradient:
+    # here we check it by FWHM value. If both the RHS and the LHS indices
+    # exist around the FWHM y value, then the discovered peak is real;
+    # otherwise we disregard the hypothetical peak.
+
+    y = dQdE_at_peak*0.5 #y in FWHM
+
+    # plot the peak search process
+
+    t_peak_Ind = []
+    ROI_array = []
+
+    for index, pI in enumerate(peakInd):
+        try:
+            yleft = dQdE[ 0:pI ]
+            xleft = energy[ 0:pI ]
+            yright = dQdE[ pI+1:: ]
+            xright = energy[ pI+1:: ]
+            yleftleft, yleftright, yrightleft, yrightright,\
+            xleftleft, xleftright, xrightleft, xrightright = \
+            leftRightFWHM( yleft, yright, y[index], xleft, xright )
+            t_ROI = ROI_by_peak( dQdE_filtered, energy,
+                                          0.5*(xleftleft + xleftright),
+                                          0.5*(xrightleft + xrightright),
+                                          epsilon, plot_ROI_search )
+            ROI_array.append (t_ROI)
+            t_peak_Ind.append(pI)
+
+        except IndexError:
+            pass
+
+    if t_peak_Ind:
+        peakInd = t_peak_Ind
+        energy_at_peak = energy[peakInd]
+        dQdE_at_peak = dQdE[peakInd]
+
+    else:
         print "No peak is found"
+        peakInd = None
+        energy_at_peak = None
+        dQdE_at_peak = None
+        ROI_array = None
+
+    if plot_peak_search:
+        if 'inline' in matplotlib.get_backend():
+            fig, ax = plt.subplots( dpi = 150 )
+        else:
+            fig,ax = plt.subplots( figsize=( 10, 8 ) )
+
+        fig.patch.set_facecolor('white')
+        leg = ["Real signal","Filtered signal" ]
+        ax.plot(energy, dQdE, linewidth = 2, linestyle = "--",
+                label = leg[0] )
+        ax.plot(energy, dQdE_filtered, linewidth = 2, label = leg[1] )
+        ax.scatter(energy[peakInd], dQdE[peakInd], color= 'red', s = 20)
+        ax.set_xlabel(r"$\mathrm{Energy\,(MeV)}$" )
+        ax.set_ylabel(r"$\mathrm{dQ/dE\,(C/MeV)}$")
+        ax.xaxis.set_tick_params(width=2, length = 8)
+        ax.yaxis.set_tick_params(width=2, length = 8)
+        ax.set_xlim( min(energy), max(energy) )
+        font = {'family':'sans-serif'}
+        plt.rc('font', **font)
+
+        if leg is not None:
+            # Now add the legend with some customizations.
+            legend = plt.legend(loc='best', shadow=True)
+
+            # Set the fontsize
+            for label in legend.get_texts():
+                label.set_fontsize('large')
+
+            for label in legend.get_lines():
+                label.set_linewidth(1.5)  # the legend line width
+
+    return peakInd, energy_at_peak, dQdE_at_peak, ROI_array
 
 def beam_energy_spread( energy, dQdE, lfwhm = True, peak = None ):
     """
@@ -542,10 +646,13 @@ def beam_energy_spread( energy, dQdE, lfwhm = True, peak = None ):
     return deltaE, deltaEE
 
 def sorted_by_gamma_beam_emittance ( frame_num, chosen_particles, qdict,
-                                    direction, species = None, num_bins = None,
-                                    lwrite = True, lplot = False, lsavefig = False ):
+                                    direction, quantity_to_analyze = None,
+                                    species = None, num_bins = None,
+                                    lwrite = True, lplot = False,
+                                    lsavefig = False ):
     """
-    runs an analysis on beam emittance with respect to gamma
+    runs an analysis on beam emittance with respect to selected quantity to
+    analyze
 
     Paramaters:
     -----------
@@ -557,6 +664,9 @@ def sorted_by_gamma_beam_emittance ( frame_num, chosen_particles, qdict,
 
     species: string
         species name for writing purpose. Default: None
+
+    quantity_to_analyze: string
+        quantity name to be binned
 
     qdict: dict
         dictionary that contains the correspondance to the array
@@ -590,14 +700,24 @@ def sorted_by_gamma_beam_emittance ( frame_num, chosen_particles, qdict,
     """
 
     try:
+        if quantity_to_analyze is None:
+            quantity_to_analyze = "gamma"
 
-        gamma = chosen_particles[qdict["gamma"]]
-
+        q = chosen_particles[qdict[ quantity_to_analyze ]]
         # By default, Δgamma = 2 in a bin
-        num_bins = int( (np.max(gamma) - np.min(gamma))/2 )
+        if quantity_to_analyze in ["x", "y", "z"]:
+            sigma = wstd( q, chosen_particles[qdict[ "w" ]])
+            ave = np.average( q, weights = chosen_particles[qdict[ "w" ]] )
+            # we define a range of bins based on sigma values
+            steps = np.array([  ave - 4*sigma, ave - 3*sigma,
+                                ave - 2*sigma, ave - sigma, ave, ave + sigma,
+                                ave + 2*sigma, ave + 3*sigma, ave + 4*sigma])
+
+        else:
+            num_bins = int( (np.max(q) - np.min(q))/2 )
+            steps = np.linspace(np.min(q), np.max(q), num = num_bins)
 
         # Reconstruct the step
-        steps = np.linspace(np.min(gamma), np.max(gamma), num = num_bins)
         mid_bin = (steps[0:-1] + steps[1:])/2
         bin_shape = np.shape(mid_bin)[0]
 
@@ -606,8 +726,8 @@ def sorted_by_gamma_beam_emittance ( frame_num, chosen_particles, qdict,
 
         # Binning the gamma and analyze the emittance for each bin
         for b in xrange( bin_shape ):
-            index = np.compress( np.logical_and(gamma >= steps[b],
-                gamma < steps[b+1]), np.arange(len(gamma)))
+            index = np.compress( np.logical_and(q >= steps[b],
+                q < steps[b+1]), np.arange(len(q)))
             bin_chosen_particles = np.take(chosen_particles, index, axis=1)
             emit[b] = beam_emittance( frame_num, bin_chosen_particles,
                                       qdict, direction )
@@ -618,9 +738,9 @@ def sorted_by_gamma_beam_emittance ( frame_num, chosen_particles, qdict,
             sp_name = "all"
 
         if lwrite:
-            qname = ["gamma", "emittance"]
-            f = FileWriting( qname , "sorted_beam_emittance_%s_%s_%d" \
-                            %(direction, sp_name, frame_num ))
+            qname = [quantity_to_analyze , "emittance"]
+            f = FileWriting( qname , "sorted_by_%s_beam_emittance_%s_%s_%d" \
+                            %(quantity_to_analyze, direction, sp_name, frame_num ))
             stacked_data = np.stack( (mid_bin, emit), axis = 0 )
             f.write( stacked_data, np.shape(stacked_data) ,
                     attrs = [ "arb. units", "m.rad" ])
@@ -635,7 +755,7 @@ def sorted_by_gamma_beam_emittance ( frame_num, chosen_particles, qdict,
 
             ax.plot( mid_bin, emit*1e6, linewidth = 2 )
 
-            ax.set_xlabel(r"$\mathrm{\gamma\,(arb.\, unit)}$")
+            ax.set_xlabel(r"$\mathrm{%s\,(arb.\, unit)}$" %quantity_to_analyze)
             ax.set_ylabel(r"$\mathrm{\epsilon_{norm.}\,(mm.\,mrad)}$")
             ax.xaxis.set_tick_params(width=2, length = 8)
             ax.yaxis.set_tick_params(width=2, length = 8)
@@ -645,15 +765,17 @@ def sorted_by_gamma_beam_emittance ( frame_num, chosen_particles, qdict,
 
             if lsavefig:
                 fig.savefig( config.result_path + \
-                            "sorted_beam_emittance_%s_%s_%d.png" \
-                            %(direction, sp_name, frame_num ))
+                            "sorted_by_%s_beam_emittance_%s_%s_%d.png" \
+                            %(quantity_to_analyze, direction, sp_name, frame_num ))
 
         if not lplot and lsavefig:
             print "Sorry, no plot, no save."
 
     except ValueError:
-        print "Sorted by gamma beam emittance: "+ \
-               "Analysis cannot be done because particles are not detected. "
+        pass
+        #print "Sorted by %s beam emittance: "+ \
+        #       "Analysis cannot be done because particles are not detected. " \
+        #       %(quantity_to_analyze)
         mid_bin = np.NaN
         emit = np.NaN
 

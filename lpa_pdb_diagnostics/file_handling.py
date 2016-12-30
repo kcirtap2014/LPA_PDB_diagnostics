@@ -56,10 +56,11 @@ class FileWriting():
         if self.groups is not None:
             self.group_object = []
             for group in self.groups:
-                self.group_object.append(self.file_object.create_group(str(group)))
+                self.group_object.append(
+                    self.file_object.create_group(str(group)))
 
     def write( self, data, size, dset_index_start = None
-    , dset_index_stop = None, attrs = None):
+    , dset_index_stop = None, attrs = None, close = True):
         """
         Dump data into the file
 
@@ -76,9 +77,13 @@ class FileWriting():
 
         dset_index_stop: int
             indicates the index where the data should stop writing
+
+        close: boolean
+            if close is True, self.file_object.close() will be called
         """
 
-        if len(attrs)!= len(self.dname):
+
+        if (attrs is not None) and (len(attrs)!= len(self.dname)):
             raise "len(attrs) has to be the same as len(dname)."
 
         if self.groups is not None:
@@ -86,15 +91,19 @@ class FileWriting():
                 for indexq, quantity in enumerate(self.dname):
                     #print "size of dset", dset
                     #print "size of data", np.shape(data[indexg][indexq][:])
-                    #print "current dset size", np.shape(dset[dset_index_start:dset_index_stop])
-                    if (dset_index_start is not None) and (dset_index_stop is not None):
-                        dset = self.group_object[indexg].require_dataset(quantity,
-                                size, dtype = float)
-                        dset[dset_index_start:dset_index_stop] = data[indexg][indexq][:]
+                    #print "current dset size",
+                    #np.shape(dset[dset_index_start:dset_index_stop])
+                    if (dset_index_start is not None) and \
+                        (dset_index_stop is not None):
+                        dset = self.group_object[indexg].require_dataset(
+                                quantity, size, dtype = float)
+                        dset[dset_index_start:dset_index_stop] = \
+                                                        data[indexg][indexq][:]
 
                     else:
-                        dset = self.group_object[indexg].require_dataset(quantity,
-                                np.shape(data[indexg][indexq]), dtype = float)
+                        dset = self.group_object[indexg].require_dataset(
+                                quantity, np.shape(data[indexg][indexq]),
+                                dtype = float)
                         dset[:] = data[indexg][indexq][:]
 
                     if attrs is not None and dset_index_start == 0:
@@ -109,13 +118,9 @@ class FileWriting():
 
                 dset[:] = data[indexq]
 
-        self.file_object.close()
-
-    def read ( self ):
-
-        f = h5py.File(config.result_path + self.fname, 'r')
-
-        return f
+        if close:
+            self.file_object.close()
+            print "** Writing is done **"
 
 class FileReading():
 
