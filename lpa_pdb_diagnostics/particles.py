@@ -436,7 +436,8 @@ def beam_spectrum( frame_num, gamma, w, lwrite = False,
     return energy, dQdE
 
 def beam_peak( energy, dQdE, peak_width = 20.0, epsilon = 1e-4, thres =0.3,
-               plot_peak_search = False, plot_ROI_search = False):
+               plot_peak_search = False, plot_ROI_search = False, l_fwhm = True,
+               l_baseline = False):
     """
     returns the index of a peak from a beam spectrum and also the energy
     interval where the peak is situated.
@@ -466,6 +467,12 @@ def beam_peak( energy, dQdE, peak_width = 20.0, epsilon = 1e-4, thres =0.3,
     plot_ROI_search: boolean
         either to plot the region of interest for the energy interval search.
         Purely for illustration. Default value: False
+
+    l_fwhm: boolean
+        returns ROI_by_peak using the FWHM method. Default value: True
+
+    l_baseline: False
+        returns ROI_by_peak using the pedestal method. Default value: False
 
     Returns:
     --------
@@ -518,10 +525,18 @@ def beam_peak( energy, dQdE, peak_width = 20.0, epsilon = 1e-4, thres =0.3,
             yleftleft, yleftright, yrightleft, yrightright,\
             xleftleft, xleftright, xrightleft, xrightright = \
             leftRightFWHM( yleft, yright, y[index], xleft, xright )
-            t_ROI = ROI_by_peak( dQdE_filtered, energy,
+
+            # two choices to choose the baseline: 1 is by epsilon, the other
+            # using fwhm
+            if l_baseline:
+                t_ROI = ROI_by_peak( dQdE_filtered, energy,
                                           0.5*(xleftleft + xleftright),
                                           0.5*(xrightleft + xrightright),
                                           epsilon, plot_ROI_search )
+            if l_fwhm:
+                t_ROI = [ 0.5*(xleftleft + xleftright),
+                         0.5*(xrightleft + xrightright) ]
+
             ROI_array.append (t_ROI)
             t_peak_Ind.append(pI)
 
