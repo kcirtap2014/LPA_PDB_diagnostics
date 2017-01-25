@@ -3,11 +3,9 @@ from scipy.constants import e
 import math
 import numpy as np
 from file_handling import FileWriting
-from scipy import sparse
 import pylab as plt
 import config
 import matplotlib
-import pdb
 
 def quant_concatenate ( array_obj_quant , keep_object_name = False ):
 
@@ -75,7 +73,6 @@ def ALSS_baseline ( y, lmbda, p ):
     m = len(y)
     diff2 = np.diff( np.eye(m), n=2 )
     weight = np.ones( m ) #weight
-    epsilon = np.ones( (m,1) )*1e-7 # test for convergence
 
     for i in xrange(4):
         weight = np.diag( weight )
@@ -617,6 +614,10 @@ def charge_density( x, gamma, w, reduction_factor = None):
     w: 1D numpy array
         weight distribution of the particles
 
+    reduction_factor: int
+        reduction factor for energy so that the max(energy) will be resized to
+        the max(field). Default: None
+
     Returns:
     --------
     Hmasked: 2D numpy array
@@ -648,6 +649,36 @@ def bigPicture( frame_num, p_z, p_gamma, p_w, f_z, f_wake, f_laser,
 
     Parameters:
     -----------
+    frame_num: int
+        frame number for writing purpose
+
+    p_z: array of floats
+        position in z of particles
+
+    p_gamma: array of floats
+        gamma values of particles
+
+    p_w: array of weights
+        weight of particles
+
+    f_z: array of floats
+        position in z of the field
+
+    f_wake: array of floats
+        normalized ez field
+
+    f_laser: array of floats
+        normalized laser field
+
+    lsavefigure: boolean
+        if True, the figure will be saved. Default: True
+
+    lwrite: boolean
+        if True, data will be saved. Default: False
+
+    reduction_factor: int
+        reduction factor for energy so that the max(energy) will be resized to
+        the max(field). Default: None
 
     """
 

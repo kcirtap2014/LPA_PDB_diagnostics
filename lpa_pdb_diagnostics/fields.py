@@ -1,10 +1,8 @@
 import cPickle as pickle
 import numpy as np
-import sys
 from scipy.constants import e, c, m_e
 from generics import findRoot, savitzkyGolay, wstd
 from file_handling import FileWriting
-import pdb
 
 class FieldInstant():
 
@@ -73,7 +71,7 @@ class FieldInstant():
         envelop : 1D numpy array
             the amplitude of the envelop with respect to z_envelop
         """
-        
+
         # we take only  zfield>0
         index = np.compress(self.zfield >=0 , np.arange(len(self.zfield)))
         zfield = self.zfield[index]

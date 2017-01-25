@@ -3,16 +3,14 @@ import numpy as np
 import math
 import sys
 from scipy.constants import e
-from scipy.signal import find_peaks_cwt
 from generics import gamma2Energy, leftRightFWHM, \
                      bilinearInterpolation, w2charge, wstd, savitzkyGolay, \
-                     ROI_by_peak, peak_indexes
+                     ROI_by_peak, peak_indexes, wavg
 import config
 from pylab import plt
 from file_handling import FileWriting
 import matplotlib
 import cubehelix
-import pdb
 
 try:
     import pandas as pd
@@ -211,7 +209,7 @@ class ParticleInstant():
                 #Test the ROI structure
                 countValidAgg = 0
 
-                if len(ROI)!=2:
+                if len(ROI)<1:
                     raise "ROI should be a 1D array of size at least 1."
 
                 for agg in ROI:
@@ -220,12 +218,12 @@ class ParticleInstant():
 
                 if countValidAgg == 1:
                     indexListROI = set(np.compress(self.z>ROI[0],
-                    n_array))
+                        n_array))
 
                 else:
                     indexListROI = set(np.compress(
-                    np.logical_and(self.z>ROI[0],
-                    self.z<ROI[1]), n_array))
+                        np.logical_and(self.z>ROI[0],
+                        self.z<ROI[1]), n_array))
 
             if gamma_threshold and ROI:
                 indexList = list(indexListGamma.intersection(indexListROI))
@@ -660,6 +658,211 @@ def beam_energy_spread( energy, dQdE, lfwhm = True, peak = None ):
 
     return deltaE, deltaEE
 
+def sorted_by_quantity_beam_property ( frame_num, chosen_particles, qdict,
+                                    direction = None, quantity_to_analyze = None,
+                                    species = None, b_property = "emittance",
+                                    num_bins = None, lwrite = True,
+                                    lplot = False, lsavefig = False ):
+    """
+    runs an analysis on beam energy with respect to selected quantity to
+    analyze
+
+    Paramaters:
+    -----------
+    frame_num: int
+        frame number, for writing purpose
+
+    chosen_particles: ndarray
+        consists of quantities of selected particles
+
+    species: string
+        species name for writing purpose. Default: None
+
+    b_property: string
+        indicate which beam proeprty to be analysed. Default: emittance
+        For now, choices are:
+            - energy: Average energy and RMS energy will be returned.
+            - emittance.
+
+    quantity_to_analyze: string
+        quantity name to be binned
+
+    qdict: dict
+        dictionary that contains the correspondance to the array
+        "chosen particles" indices
+
+    direction: string
+        transverse directions. Can be either "x" or "y". Default: None
+
+    num_bins: int
+        This is an argument related to sort_by_gamma option, it indicates the
+        number of bins that the analysis should used. If none provided, num_bins
+        will be calculated by taking into account the dynamic of gamma.
+        Default: None
+
+    Returns:
+    --------
+    mid_bin: 1D numpy array
+        an array representing the binned gamma
+
+    emit: 1D numpy array
+        an array representing the emittance for each binned gamma
+
+    lplot: boolean
+        Plot figure if True. Default: False
+
+    lsavefig: boolean
+        Save figure of the emittance distribution if True. Default: False
+
+    lwrite: boolean
+        Save data of the emittance distribution if True. Default: False
+    """
+
+    try:
+        if quantity_to_analyze is None:
+            quantity_to_analyze = "gamma"
+
+        q = chosen_particles[qdict[ quantity_to_analyze ]]
+        # By default, Δgamma = 2 in a bin
+        if quantity_to_analyze in ["x", "y", "z"]:
+            sigma = wstd( q, chosen_particles[qdict[ "w" ]])
+            ave = np.average( q, weights = chosen_particles[qdict[ "w" ]] )
+            # we define a range of bins based on sigma values
+            steps = np.array([  ave - 4*sigma, ave - 3*sigma,
+                                ave - 2*sigma, ave - sigma, ave, ave + sigma,
+                                ave + 2*sigma, ave + 3*sigma, ave + 4*sigma])
+
+        else:
+            num_bins = int( (np.max(q) - np.min(q))/2 )
+            steps = np.linspace(np.min(q), np.max(q), num = num_bins)
+
+        # Reconstruct the step
+        mid_bin = (steps[0:-1] + steps[1:])/2
+        bin_shape = np.shape(mid_bin)[0]
+
+        if b_property == "emittance":
+            # Initialize an empty array of emittance
+            prop = np.empty( bin_shape )
+
+        elif b_property == "energy":
+            # Initialize an empty array of emittance
+            prop = np.empty( (2, bin_shape) )
+        else:
+            raise "b_property is not valid. Select either: " + \
+                  "\n- emittance \n-energy"
+
+        # Binning the gamma and analyze the emittance for each bin
+        for b in xrange( bin_shape ):
+            index = np.compress( np.logical_and(q >= steps[b],
+                q < steps[b+1]), np.arange(len(q)))
+            bin_chosen_particles = np.take(chosen_particles, index, axis=1)
+
+            if b_property == "emittance":
+                prop[b] = beam_emittance( frame_num, bin_chosen_particles,
+                                      qdict, direction )
+
+            elif b_property == "energy":
+                energy = gamma2Energy(bin_chosen_particles[qdict[ "gamma" ]])
+                prop[0][b] = wavg( energy, bin_chosen_particles[qdict[ "w" ]] )
+                prop[1][b] = wstd( energy, bin_chosen_particles[qdict[ "w" ]] )
+
+        # attributing names to files
+        if species is not None:
+            sp_name = species
+        else:
+            sp_name = "all"
+
+        if lwrite:
+
+            qname = [quantity_to_analyze , b_property]
+
+            if b_property == "emittance":
+                f = FileWriting( qname , "sorted_by_%s_beam_%s_%s_%s_%d" \
+                                %(quantity_to_analyze, b_property, direction,
+                                sp_name, frame_num ))
+                stacked_data = np.stack( (mid_bin, prop), axis = 0 )
+
+            elif b_property == "energy":
+                gname = ["avgE", "sigmaE"]
+                f = FileWriting( qname , "sorted_by_%s_beam_%s_%s_%d" \
+                                %(quantity_to_analyze, b_property,
+                                sp_name, frame_num ), groups = gname)
+                list_mid_bin = np.stack((mid_bin, mid_bin), axis = 0)
+                stacked_data = np.stack( (list_mid_bin, prop), axis = 1 )
+
+            f.write( stacked_data, np.shape(stacked_data) ,
+                    attrs = [ "arb. units", "m.rad" ])
+
+        if lplot:
+            if 'inline' in matplotlib.get_backend():
+                if b_property == "emittance":
+                    fig, ax = plt.subplots( dpi=150 )
+
+                elif b_property =="energy":
+                    fig, ax = plt.subplots( 1, 2, dpi=150 )
+            else:
+                if b_property == "emittance":
+                    fig, ax = plt.subplots( figsize = (10,8) )
+
+                elif b_property =="energy":
+                    fig, ax = plt.subplots( 1, 2, figsize = (10,8) )
+
+            fig.patch.set_facecolor('white')
+
+            if b_property == "emittance":
+
+                ax.plot( mid_bin, prop*1e6, linewidth = 2 )
+                ax.set_xlabel(r"$\mathrm{%s\,(arb.\, unit)}$"
+                                %quantity_to_analyze)
+                ax.set_ylabel(r"$\mathrm{\epsilon_{norm.}\,(mm.\,mrad)}$")
+                ax.xaxis.set_tick_params(width=2, length = 8)
+                ax.yaxis.set_tick_params(width=2, length = 8)
+                ax.set_xlim(0.9*np.min(mid_bin), 1.1*np.max(mid_bin))
+
+            elif b_property =="energy":
+
+                ax[0].plot( mid_bin, prop[0], linewidth = 2 )
+                ax[0].set_xlabel(r"$\mathrm{%s\,(arb.\, unit)}$"
+                                %quantity_to_analyze)
+                ax[0].set_ylabel(r"$\mathrm{Mean\, Energy\,(mm.\,mrad)}$")
+                ax[0].xaxis.set_tick_params(width=2, length = 8)
+                ax[0].yaxis.set_tick_params(width=2, length = 8)
+                #ax[0].set_xlim(0.9*np.min(mid_bin), 1.1*np.max(mid_bin))
+
+                ax[1].plot( mid_bin, prop[1], linewidth = 2 )
+                ax[1].set_xlabel(r"$\mathrm{%s\,(arb.\, unit)}$"
+                                %quantity_to_analyze)
+                ax[1].set_ylabel(r"$\mathrm{Variance\, Energy\,(mm.\,mrad)}$")
+                ax[1].xaxis.set_tick_params(width=2, length = 8)
+                ax[1].yaxis.set_tick_params(width=2, length = 8)
+                #ax[1].set_xlim(0.9*np.min(mid_bin), 1.1*np.max(mid_bin))
+
+                plt.setp(ax[0].get_xticklabels()[::2], visible=False)
+                plt.setp(ax[1].get_xticklabels()[::2], visible=False)
+
+            plt.title( "%s" %sp_name )
+            font = {'family':'sans-serif'}
+            plt.rc('font', **font)
+
+            if lsavefig:
+                fig.savefig( config.result_path + \
+                            "sorted_by_%s_beam_%s_%s_%s_%d.png" \
+                            %(quantity_to_analyze, b_property, direction,
+                            sp_name, frame_num ))
+
+        if not lplot and lsavefig:
+            print "Sorry, no plot, no save."
+
+    except ValueError:
+        pass
+        #print "Sorted by %s beam emittance: "+ \
+        #       "Analysis cannot be done because particles are not detected. " \
+        #       %(quantity_to_analyze)
+        mid_bin = np.NaN
+        prop = np.NaN
+
+    return mid_bin, prop
+
 def sorted_by_gamma_beam_emittance ( frame_num, chosen_particles, qdict,
                                     direction, quantity_to_analyze = None,
                                     species = None, num_bins = None,
@@ -715,6 +918,8 @@ def sorted_by_gamma_beam_emittance ( frame_num, chosen_particles, qdict,
     """
 
     try:
+        print config.bcolors.WARNING + "Warning: This method is deprecated, " +\
+              "please use sorted_by_quantity_beam_property" + config.bcolors.ENDC
         if quantity_to_analyze is None:
             quantity_to_analyze = "gamma"
 
