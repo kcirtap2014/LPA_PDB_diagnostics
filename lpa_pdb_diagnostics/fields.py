@@ -10,7 +10,8 @@ class FieldInstant():
     A class that handles field instants.
     """
     def __init__( self, filename, laser_pol,
-     quantities = ["E", "B", "zfield", "densH", "densN5", "densN6", "densN6"] ):
+     quantities = ["E", "B", "zfield", "densH", "densN5", "densN6",
+     "densN7", "rho", "xfield"] ):
         """
         initializes the field instant. The fields contain E- and B-fields
         """
@@ -30,13 +31,16 @@ class FieldInstant():
             if quantity == "zfield":
                 self.zfield = np.array(tmf["z"][:-1])
 
+            if quantity == "xfield":
+                self.xfield = np.array(tmf["x"])
+
             if quantity == "B":
                 self.bx = np.array(tmf["bx"])
                 self.by = np.array(tmf["by"])
                 self.bz = np.array(tmf["bz"])
 
             if quantity == "densH":
-                self.dens = np.array(tmf["dens"])
+                self.dens = np.array(tmf["densH"])
 
             if quantity == "densN5":
                 self.densN5 = np.array(tmf["dens5"])
@@ -46,6 +50,9 @@ class FieldInstant():
 
             if quantity == "densN7":
                 self.densN7 = np.array(tmf["dens7"])
+
+            if quantity == "rho":
+                self.rho = np.array(tmf["rho"])
 
         # self.extent contains information on the row and column
         row, col = np.shape(self.ez)
