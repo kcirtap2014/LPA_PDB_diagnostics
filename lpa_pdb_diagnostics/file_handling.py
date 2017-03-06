@@ -139,7 +139,7 @@ class FileReading():
             the current directory. Default: None
         """
 
-        if current_path is not None:
+        if current_path is None:
             current_path = config.result_path
 
         self.file_path = current_path + "/"+ file_name
