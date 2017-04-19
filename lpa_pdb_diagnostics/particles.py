@@ -745,7 +745,7 @@ def sorted_by_quantity_beam_property ( frame_num, chosen_particles, qdict,
             prop = np.empty( bin_shape )
 
         elif b_property == "energy":
-            # Initialize an empty array of emittance
+            # Initialize an empty array of energy
             prop = np.empty( (2, bin_shape) )
         else:
             raise "b_property is not valid. Select either: " + \
