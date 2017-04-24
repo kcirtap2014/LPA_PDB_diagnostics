@@ -683,6 +683,7 @@ def sorted_by_quantity_beam_property ( frame_num, chosen_particles, qdict,
         For now, choices are:
             - energy: Average energy and RMS energy will be returned.
             - emittance.
+            - divergence.
 
     quantity_to_analyze: string
         quantity name to be binned
@@ -742,11 +743,17 @@ def sorted_by_quantity_beam_property ( frame_num, chosen_particles, qdict,
 
         if b_property == "emittance":
             # Initialize an empty array of emittance
+            
             prop = np.empty( bin_shape )
 
         elif b_property == "energy":
-            # Initialize an empty array of energy
+            # Initialize an empty array of emittance
             prop = np.empty( (2, bin_shape) )
+            
+        elif b_property == "divergence":
+        	# Initialize an empty array of emittance
+        	prop = np.empty( bin_shape )
+        	
         else:
             raise "b_property is not valid. Select either: " + \
                   "\n- emittance \n-energy"
@@ -765,6 +772,10 @@ def sorted_by_quantity_beam_property ( frame_num, chosen_particles, qdict,
                 energy = gamma2Energy(bin_chosen_particles[qdict[ "gamma" ]])
                 prop[0][b] = wavg( energy, bin_chosen_particles[qdict[ "w" ]] )
                 prop[1][b] = wstd( energy, bin_chosen_particles[qdict[ "w" ]] )
+                
+            elif b_property == "divergence":
+				prop[b] = beam_divergence(bin_chosen_particles, qdict, direction )
+
 
         # attributing names to files
         if species is not None:
@@ -789,6 +800,12 @@ def sorted_by_quantity_beam_property ( frame_num, chosen_particles, qdict,
                                 sp_name, frame_num ), groups = gname)
                 list_mid_bin = np.stack((mid_bin, mid_bin), axis = 0)
                 stacked_data = np.stack( (list_mid_bin, prop), axis = 1 )
+                
+            elif b_property == "divergence":   
+            	f = FileWriting( qname , "sorted_by_%s_beam_%s_%s_%s_%d" \
+                                %(quantity_to_analyze, b_property, direction,
+                                sp_name, frame_num ))
+                stacked_data = np.stack( (mid_bin, prop), axis = 0 ) 
 
             f.write( stacked_data, np.shape(stacked_data) ,
                     attrs = [ "arb. units", "m.rad" ])
@@ -800,12 +817,19 @@ def sorted_by_quantity_beam_property ( frame_num, chosen_particles, qdict,
 
                 elif b_property =="energy":
                     fig, ax = plt.subplots( 1, 2, dpi=150 )
+                    
+                elif b_property == "divergence":
+                	fig, ax = plt.subplots( dpi=150 )
+                	
             else:
                 if b_property == "emittance":
                     fig, ax = plt.subplots( figsize = (10,8) )
 
                 elif b_property =="energy":
                     fig, ax = plt.subplots( 1, 2, figsize = (10,8) )
+                
+                elif b_property == "divergence":
+                	fig, ax = plt.subplots( figsize = (10, 8) )
 
             fig.patch.set_facecolor('white')
 
@@ -839,6 +863,17 @@ def sorted_by_quantity_beam_property ( frame_num, chosen_particles, qdict,
 
                 plt.setp(ax[0].get_xticklabels()[::2], visible=False)
                 plt.setp(ax[1].get_xticklabels()[::2], visible=False)
+                
+            elif b_property == "divergence":
+            
+             	ax.plot( mid_bin, prop*1e6, linewidth = 2 )
+                ax.set_xlabel(r"$\mathrm{%s\,(arb.\, unit)}$"
+                                %quantity_to_analyze)
+                ax.set_ylabel(r"$\mathrm{Divergence}\,(m.\,mrad)}$")
+                ax.xaxis.set_tick_params(width=2, length = 8)
+                ax.yaxis.set_tick_params(width=2, length = 8)
+                ax.set_xlim(0.9*np.min(mid_bin), 1.1*np.max(mid_bin))
+
 
             plt.title( "%s" %sp_name )
             font = {'family':'sans-serif'}
