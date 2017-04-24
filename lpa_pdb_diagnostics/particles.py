@@ -743,7 +743,6 @@ def sorted_by_quantity_beam_property ( frame_num, chosen_particles, qdict,
 
         if b_property == "emittance":
             # Initialize an empty array of emittance
-            
             prop = np.empty( bin_shape )
 
         elif b_property == "energy":
@@ -751,8 +750,8 @@ def sorted_by_quantity_beam_property ( frame_num, chosen_particles, qdict,
             prop = np.empty( (2, bin_shape) )
             
         elif b_property == "divergence":
-        	# Initialize an empty array of divergence
-        	prop = np.empty( bin_shape )
+            # Initialize an empty array of divergence
+            prop = np.empty( bin_shape )
         	
         else:
             raise "b_property is not valid. Select either: " + \
@@ -774,7 +773,7 @@ def sorted_by_quantity_beam_property ( frame_num, chosen_particles, qdict,
                 prop[1][b] = wstd( energy, bin_chosen_particles[qdict[ "w" ]] )
                 
             elif b_property == "divergence":
-				prop[b] = beam_divergence(bin_chosen_particles, qdict, direction )
+		prop[b] = beam_divergence(bin_chosen_particles, qdict, direction )
 
 
         # attributing names to files
@@ -819,7 +818,7 @@ def sorted_by_quantity_beam_property ( frame_num, chosen_particles, qdict,
                     fig, ax = plt.subplots( 1, 2, dpi=150 )
                     
                 elif b_property == "divergence":
-                	fig, ax = plt.subplots( dpi=150 )
+                    fig, ax = plt.subplots( figsize(10,8) )
                 	
             else:
                 if b_property == "emittance":
@@ -829,7 +828,7 @@ def sorted_by_quantity_beam_property ( frame_num, chosen_particles, qdict,
                     fig, ax = plt.subplots( 1, 2, figsize = (10,8) )
                 
                 elif b_property == "divergence":
-                	fig, ax = plt.subplots( figsize = (10, 8) )
+                    fig, ax = plt.subplots( figsize = (10, 8) )
 
             fig.patch.set_facecolor('white')
 
@@ -866,7 +865,7 @@ def sorted_by_quantity_beam_property ( frame_num, chosen_particles, qdict,
                 
             elif b_property == "divergence":
             
-             	ax.plot( mid_bin, prop, linewidth = 2 )
+             	ax.plot( mid_bin, prop*1e3, linewidth = 2 )
                 ax.set_xlabel(r"$\mathrm{%s\,(arb.\, unit)}$"
                                 %quantity_to_analyze)
                 ax.set_ylabel(r"$\mathrm{Divergence}\,(mrad)}$")
