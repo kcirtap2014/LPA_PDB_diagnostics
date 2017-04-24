@@ -747,11 +747,11 @@ def sorted_by_quantity_beam_property ( frame_num, chosen_particles, qdict,
             prop = np.empty( bin_shape )
 
         elif b_property == "energy":
-            # Initialize an empty array of emittance
+            # Initialize an empty array of energy
             prop = np.empty( (2, bin_shape) )
             
         elif b_property == "divergence":
-        	# Initialize an empty array of emittance
+        	# Initialize an empty array of divergence
         	prop = np.empty( bin_shape )
         	
         else:
@@ -866,10 +866,10 @@ def sorted_by_quantity_beam_property ( frame_num, chosen_particles, qdict,
                 
             elif b_property == "divergence":
             
-             	ax.plot( mid_bin, prop*1e6, linewidth = 2 )
+             	ax.plot( mid_bin, prop, linewidth = 2 )
                 ax.set_xlabel(r"$\mathrm{%s\,(arb.\, unit)}$"
                                 %quantity_to_analyze)
-                ax.set_ylabel(r"$\mathrm{Divergence}\,(m.\,mrad)}$")
+                ax.set_ylabel(r"$\mathrm{Divergence}\,(mrad)}$")
                 ax.xaxis.set_tick_params(width=2, length = 8)
                 ax.yaxis.set_tick_params(width=2, length = 8)
                 ax.set_xlim(0.9*np.min(mid_bin), 1.1*np.max(mid_bin))
