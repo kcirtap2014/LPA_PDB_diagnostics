@@ -755,7 +755,7 @@ def sorted_by_quantity_beam_property ( frame_num, chosen_particles, qdict,
 
         else:
             raise "b_property is not valid. Select either: " + \
-                  "\n- emittance \n-energy"
+            "\n- emittance \n-energy \n-divergence"
 
         # Binning the gamma and analyze the emittance for each bin
         for b in xrange( bin_shape ):
@@ -773,7 +773,7 @@ def sorted_by_quantity_beam_property ( frame_num, chosen_particles, qdict,
                 prop[1][b] = wstd( energy, bin_chosen_particles[qdict[ "w" ]] )
 
             elif b_property == "divergence":
-                prop[b] = beam_divergence(bin_chosen_particles, qdict,
+                prop[b] = beam_divergence( bin_chosen_particles,qdict,
                                         direction )
 
 
