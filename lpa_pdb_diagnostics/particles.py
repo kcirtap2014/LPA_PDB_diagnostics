@@ -773,7 +773,8 @@ def sorted_by_quantity_beam_property ( frame_num, chosen_particles, qdict,
                 prop[1][b] = wstd( energy, bin_chosen_particles[qdict[ "w" ]] )
 
             elif b_property == "divergence":
-        prop[b] = beam_divergence(bin_chosen_particles, qdict, direction )
+                prop[b] = beam_divergence(bin_chosen_particles, qdict,
+                                        direction )
 
 
         # attributing names to files
@@ -833,7 +834,6 @@ def sorted_by_quantity_beam_property ( frame_num, chosen_particles, qdict,
             fig.patch.set_facecolor('white')
 
             if b_property == "emittance":
-
                 ax.plot( mid_bin, prop*1e6, linewidth = 2 )
                 ax.set_xlabel(r"$\mathrm{%s\,(arb.\, unit)}$"
                                 %quantity_to_analyze)
@@ -843,7 +843,6 @@ def sorted_by_quantity_beam_property ( frame_num, chosen_particles, qdict,
                 ax.set_xlim(0.9*np.min(mid_bin), 1.1*np.max(mid_bin))
 
             elif b_property =="energy":
-
                 ax[0].plot( mid_bin, prop[0], linewidth = 2 )
                 ax[0].set_xlabel(r"$\mathrm{%s\,(arb.\, unit)}$"
                                 %quantity_to_analyze)
@@ -864,8 +863,7 @@ def sorted_by_quantity_beam_property ( frame_num, chosen_particles, qdict,
                 plt.setp(ax[1].get_xticklabels()[::2], visible=False)
 
             elif b_property == "divergence":
-
-                 ax.plot( mid_bin, prop*1e3, linewidth = 2 )
+                ax.plot( mid_bin, prop*1e3, linewidth = 2 )
                 ax.set_xlabel(r"$\mathrm{%s\,(arb.\, unit)}$"
                                 %quantity_to_analyze)
                 ax.set_ylabel(r"$\mathrm{Divergence}\,(mrad)}$")
