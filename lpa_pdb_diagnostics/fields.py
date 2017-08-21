@@ -31,14 +31,12 @@ class FieldInstant():
 
         self.quantities = quantities
         self.it = None
-        
+
         for arg in kwargs:
             if arg == "it":
-                self.it = it
-            if arg == "species":
-                self.species = species
-        pdb_present = False
+                self.it = kwargs[arg]
 
+        pdb_present = False
         # check for the extension of the file
         if filename.endswith('.pdb'):
             with open( filename ) as pickle_file:
@@ -59,11 +57,11 @@ class FieldInstant():
                     self.ez = np.array(tmf["ez"])
 
                 else:
-                    self.ex, self.info_ex = OPMD_obj.get_field( iteration=self.it,  field='E',
+                    self.ex, self.info_ex = ts.get_field( iteration=self.it,  field='E',
                         coord='x' )
-                    self.ey, self.info_ey = OPMD_obj.get_field( iteration=self.it,  field='E',
+                    self.ey, self.info_ey = ts.get_field( iteration=self.it,  field='E',
                         coord='y' )
-                    self.ez, self.info_ez = OPMD_obj.get_field( iteration=self.it,  field='E',
+                    self.ez, self.info_ez = ts.get_field( iteration=self.it,  field='E',
                         coord='z' )
 
             if quantity == "zfield":
@@ -84,11 +82,11 @@ class FieldInstant():
                     self.by = np.array(tmf["by"])
                     self.bz = np.array(tmf["bz"])
                 else:
-                    self.bx, self.info_bx = OPMD_obj.get_field( iteration=self.it,  field='B',
+                    self.bx, self.info_bx = ts.get_field( iteration=self.it,  field='B',
                         coord='x' )
-                    self.by, self.info_by = OPMD_obj.get_field( iteration=self.it,  field='B',
+                    self.by, self.info_by = ts.get_field( iteration=self.it,  field='B',
                         coord='y' )
-                    self.bz, self.info_bz = OPMD_obj.get_field( iteration=self.it,  field='B',
+                    self.bz, self.info_bz = ts.get_field( iteration=self.it,  field='B',
                         coord='z' )
 
             if quantity == "densH":
@@ -111,7 +109,7 @@ class FieldInstant():
                 if pdb_present:
                     self.rho = np.array(tmf["rho"])
                 else:
-                    self.rho, self.info_rho = OPMD_obj.get_field( iteration=self.it,  field='rho')
+                    self.rho, self.info_rho = ts.get_field( iteration=self.it,  field='rho')
 
             if quantity == "J":
                 if pdb_present:
@@ -119,11 +117,11 @@ class FieldInstant():
                     self.jy = np.array(tmf["jy"])
                     self.jz = np.array(tmf["jz"])
                 else:
-                    self.jx, self.info_jx = OPMD_obj.get_field( iteration=self.it,  field='J',
+                    self.jx, self.info_jx = ts.get_field( iteration=self.it,  field='J',
                         coord='x' )
-                    self.jy, self.info_jy = OPMD_obj.get_field( iteration=self.it,  field='J',
+                    self.jy, self.info_jy = ts.get_field( iteration=self.it,  field='J',
                         coord='y' )
-                    self.jz, self.info_jz = OPMD_obj.get_field( iteration=self.it,  field='J',
+                    self.jz, self.info_jz = ts.get_field( iteration=self.it,  field='J',
                         coord='z' )
 
 
