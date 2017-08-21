@@ -23,8 +23,8 @@ except ImportError:
 class ParticleInstant():
 
     def __init__(self, filename,
-            quantities = ["PID", "Weight", "Position", "Momentum", "E", "B"],
-            presence_sw = None ):
+            quantities = ["Weight", "Position", "Momentum", "E", "B"],
+            presence_sw = None , **kwargs):
         """
         Initialize an instant of particles.
 
@@ -47,43 +47,77 @@ class ParticleInstant():
         print "** Processing ** Particles: Initialisation of "\
                 +str(filename)+" **"
 
-        with open( filename ) as pickle_file:
-            tmp = pickle.load( pickle_file )
+        if filename.endswith('.pdb'):
+            with open( filename ) as pickle_file:
+                tmp = pickle.load( pickle_file )
+            pdb_present = True
+
+        else:
+            from opmd_viewer import OpenPMDTimeSeries
+            ts = OpenPMDTimeSeries(filename)
+            if self.it is None:
+                raise 'Please precise the iteration.'
 
         self.quantities = quantities
         self.num_quantities = 0
         self.qdict = {}
+        self.it = None
 
+        for arg in kwargs:
+            if arg == "it":
+                self.it = it
+            if arg == "species":
+                self.species = species
+
+        pdb_present = False
         self.pandas = False
+
         if "pandas" in sys.modules.keys():
             self.pandas = True
             frame = []
 
         for quantity in self.quantities:
             if quantity == "PID":
-                self.ssn = np.array(tmp["ssnum"]).astype(int)
+                if pdb_present:
+                    self.ssn = np.array(tmp["ssnum"]).astype(int)
+
+                else:
+                    self.ssn = OPMD_obj.get_particle(var_list="ssn",
+                        iteration = self.it,  species=self.species)
+
                 self.qdict["PID"] = self.num_quantities
                 self.num_quantities += 1
+
                 if self.pandas:
                     PID = pd.DataFrame({"PID": self.ssn})
                     frame.append(PID)
 
             if quantity == "Weight":
-                if presence_sw is not None:
-                    self.w = np.array(tmp["w"])*presence_sw
+                if pdb_present:
+                    if presence_sw is not None:
+                        self.w = np.array(tmp["w"])*presence_sw
+                    else:
+                        self.w = np.array(tmp["w"])
+
                 else:
-                    self.w = np.array(tmp["w"])
+                    self.w = OPMD_obj.get_particle(var_list="w",
+                        iteration = self.it,  species=self.species)
 
                 self.qdict["w"] = self.num_quantities
                 self.num_quantities += 1
+
                 if self.pandas:
                     w = pd.DataFrame({"Weight": self.w})
                     frame.append(w)
 
             if quantity == "Position":
-                self.x = np.array(tmp["x"])
-                self.y = np.array(tmp["y"])
-                self.z = np.array(tmp["z"])
+                if pdb_present:
+                    self.x = np.array(tmp["x"])
+                    self.y = np.array(tmp["y"])
+                    self.z = np.array(tmp["z"])
+                else:
+                    self.x, self.y, self.z = OPMD_obj.get_particle(var_list=["x",
+                     "y", "z"], iteration = self.it,  species=self.species)
 
                 self.qdict["x"] = self.num_quantities
                 self.qdict["y"] = self.num_quantities + 1
@@ -97,9 +131,14 @@ class ParticleInstant():
                     frame.append(pos)
 
             if quantity == "Momentum":
-                self.ux = np.array(tmp["ux"])
-                self.uy = np.array(tmp["uy"])
-                self.uz = np.array(tmp["uz"])
+                if pdb_present:
+                    self.ux = np.array(tmp["ux"])
+                    self.uy = np.array(tmp["uy"])
+                    self.uz = np.array(tmp["uz"])
+                else:
+                    self.ux, self.uy, self.uz = OPMD_obj.get_particle(var_list=["ux",
+                     "uy", "uz"], iteration = self.it,  species=self.species)
+
                 self.gamma = np.sqrt(1. + self.ux**2 + self.uy**2 + self.uz**2)
 
                 self.qdict["ux"] = self.num_quantities
@@ -116,9 +155,13 @@ class ParticleInstant():
                     frame.append(momentum)
 
             if quantity == "E":
-                self.ex = np.array(tmp["ex"])
-                self.ey = np.array(tmp["ey"])
-                self.ez = np.array(tmp["ez"])
+                if pdb_present:
+                    self.ex = np.array(tmp["ex"])
+                    self.ey = np.array(tmp["ey"])
+                    self.ez = np.array(tmp["ez"])
+                else:
+                    self.ex, self.ey, self.ez = OPMD_obj.get_particle(var_list=["ex",
+                     "ey", "ez"], iteration = self.it,  species=self.species)
 
                 self.qdict["ex"] = self.num_quantities
                 self.qdict["ey"] = self.num_quantities + 1
@@ -132,9 +175,13 @@ class ParticleInstant():
                     frame.append(Efield)
 
             if quantity == "B":
-                self.bx = np.array(tmp["bx"])
-                self.by = np.array(tmp["by"])
-                self.bz = np.array(tmp["bz"])
+                if pdb_present:
+                    self.bx = np.array(tmp["bx"])
+                    self.by = np.array(tmp["by"])
+                    self.bz = np.array(tmp["bz"])
+                else:
+                    self.bx, self.by, self.bz = OPMD_obj.get_particle(var_list=["bx",
+                     "by", "bz"], iteration = self.it,  species=self.species)
 
                 self.qdict["bx"] = self.num_quantities
                 self.qdict["by"] = self.num_quantities + 1
