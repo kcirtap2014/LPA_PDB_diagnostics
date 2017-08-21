@@ -11,54 +11,130 @@ class FieldInstant():
     """
     def __init__( self, filename, laser_pol,
      quantities = ["E", "B", "zfield", "densH", "densN5", "densN6",
-     "densN7", "rho", "xfield"] ):
+     "densN7", "rho", "xfield", "J"], **kwargs ):
         """
         initializes the field instant. The fields contain E- and B-fields
+
+        Parameters:
+        -----------
+        laser_pol: a numpy float
+            laser polarization, 0 if in the x-direction, pi/2 if in the y-direction
+
+        filename: string
+            add the name of the file if pdb, otherwise add the name of the folder such as "./diags/hdf5/" if it's a h5
+
+        quantities: a 1D array
+            array of the quantities
         """
 
         print "** Processing ** Fields: Intialisation of "+str(filename)+" **"
 
         self.quantities = quantities
-        with open( filename ) as pickle_file:
-            tmf = pickle.load( pickle_file )
+        self.it = None
+
+        for arg in kwargs:
+            if arg == "it":
+                self.it = kwargs[arg]
+
+        pdb_present = False
+        # check for the extension of the file
+        if filename.endswith('.pdb'):
+            with open( filename ) as pickle_file:
+                tmf = pickle.load( pickle_file )
+            pdb_present = True
+
+        else:
+            from opmd_viewer import OpenPMDTimeSeries
+            ts = OpenPMDTimeSeries(filename)
+            if self.it is None:
+                raise 'Please precise the iteration.'
 
         for quantity in self.quantities:
             if quantity == "E":
-                self.ex = np.array(tmf["ex"])
-                self.ey = np.array(tmf["ey"])
-                self.ez = np.array(tmf["ez"])
+                if pdb_present:
+                    self.ex = np.array(tmf["ex"])
+                    self.ey = np.array(tmf["ey"])
+                    self.ez = np.array(tmf["ez"])
+
+                else:
+                    self.ex, self.info_ex = ts.get_field( iteration=self.it,  field='E',
+                        coord='x' )
+                    self.ey, self.info_ey = ts.get_field( iteration=self.it,  field='E',
+                        coord='y' )
+                    self.ez, self.info_ez = ts.get_field( iteration=self.it,  field='E',
+                        coord='z' )
 
             if quantity == "zfield":
-                self.zfield = np.array(tmf["z"][:-1])
+                if pdb_present:
+                    self.zfield = np.array(tmf["z"][:-1])
+                else:
+                    self.zfield = np.array(self.info_ez.z)
 
             if quantity == "xfield":
-                self.xfield = np.array(tmf["x"])
+                if pdb_present:
+                    self.xfield = np.array(tmf["x"])
+                else:
+                    self.xfield = np.array(self.info_ez.x)
 
             if quantity == "B":
-                self.bx = np.array(tmf["bx"])
-                self.by = np.array(tmf["by"])
-                self.bz = np.array(tmf["bz"])
+                if pdb_present:
+                    self.bx = np.array(tmf["bx"])
+                    self.by = np.array(tmf["by"])
+                    self.bz = np.array(tmf["bz"])
+                else:
+                    self.bx, self.info_bx = ts.get_field( iteration=self.it,  field='B',
+                        coord='x' )
+                    self.by, self.info_by = ts.get_field( iteration=self.it,  field='B',
+                        coord='y' )
+                    self.bz, self.info_bz = ts.get_field( iteration=self.it,  field='B',
+                        coord='z' )
 
             if quantity == "densH":
-                self.dens = np.array(tmf["densH"])
+                if pdb_present:
+                    self.dens = np.array(tmf["densH"])
 
             if quantity == "densN5":
-                self.densN5 = np.array(tmf["dens5"])
+                if pdb_present:
+                    self.densN5 = np.array(tmf["dens5"])
 
             if quantity == "densN6":
-                self.densN6 = np.array(tmf["dens6"])
+                if pdb_present:
+                    self.densN6 = np.array(tmf["dens6"])
 
             if quantity == "densN7":
-                self.densN7 = np.array(tmf["dens7"])
+                if pdb_present:
+                    self.densN7 = np.array(tmf["dens7"])
 
             if quantity == "rho":
-                self.rho = np.array(tmf["rho"])
+                if pdb_present:
+                    self.rho = np.array(tmf["rho"])
+                else:
+                    self.rho, self.info_rho = ts.get_field( iteration=self.it,  field='rho')
+
+            if quantity == "J":
+                if pdb_present:
+                    self.jx = np.array(tmf["jx"])
+                    self.jy = np.array(tmf["jy"])
+                    self.jz = np.array(tmf["jz"])
+                else:
+                    self.jx, self.info_jx = ts.get_field( iteration=self.it,  field='J',
+                        coord='x' )
+                    self.jy, self.info_jy = ts.get_field( iteration=self.it,  field='J',
+                        coord='y' )
+                    self.jz, self.info_jz = ts.get_field( iteration=self.it,  field='J',
+                        coord='z' )
+
+
 
         # self.extent contains information on the row and column
         row, col = np.shape(self.ez)
-
-        self.extent = tmf["extent"]
         self.shape = [ row, col ]
+
+        if pdb_present:
+            self.extent = tmf["extent"]
+
+        else:
+            self.extent = self.info_ez.imshow_extent
 
         if laser_pol == np.pi/2:
             self.laser_field = self.ey
