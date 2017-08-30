@@ -857,8 +857,11 @@ def sorted_by_quantity_beam_property ( frame_num, chosen_particles, qdict,
                 f = FileWriting( qname , "sorted_by_%s_beam_%s_%s_%d" \
                                 %(quantity_to_analyze, b_property,
                                 sp_name, frame_num ), groups = gname)
-                list_mid_bin = np.vstack((mid_bin, mid_bin) )
-                stacked_data = np.dstack( (list_mid_bin, prop))[0]
+
+                stacked_data = []
+                stacked_data.append(np.vstack( (mid_bin,prop[0])))
+                stacked_data.append(np.vstack( (mid_bin,prop[1])))
+                stacked_data = np.array(stacked_data)
 
             elif b_property == "divergence":
                 f = FileWriting( qname , "sorted_by_%s_beam_%s_%s_%s_%d" \
