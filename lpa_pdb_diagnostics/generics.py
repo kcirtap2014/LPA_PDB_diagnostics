@@ -5,6 +5,7 @@ import numpy as np
 from file_handling import FileWriting
 import pylab as plt
 import config
+import pdb
 import matplotlib
 
 def quant_concatenate ( array_obj_quant , keep_object_name = False ):
@@ -483,13 +484,16 @@ def wavg( a , weights ):
     w_avg: float
         Weighted average of
     """
+    a = np.array(a)
+    weights = np.array(weights)
     # Check if input contains data
     if not np.any(weights) and not np.any(a):
         # If input is empty return NaN
         return np.nan
     else:
         # Calculate the weighted standard deviation
-        w_avg = np.average(a, weights = weights)
+        indices = ~np.isnan(a)
+        w_avg = np.average(a[indices], weights = weights[indices])
 
         return( w_avg )
 
@@ -510,14 +514,18 @@ def wstd( a, weights ):
     Float with the weighted standard deviation.
     Returns nan if input array is empty
     """
+    a = np.array(a)
+    weights = np.array(weights)
     # Check if input contains data
     if not np.any(weights) and not np.any(a):
         # If input is empty return NaN
         return np.nan
     else:
         # Calculate the weighted standard deviation
-        average = wavg(a, weights = weights)
-        variance = np.average((a-average)**2, weights = weights)
+        indices = ~np.isnan(a)
+        average = np.average(a[indices], weights = weights[indices])
+        variance = np.average((a[indices]-average)**2, weights = weights[indices])
+
         return( np.sqrt(variance) )
 
 def savitzkyGolay( y, window_size, order, deriv=0, rate=1 ):

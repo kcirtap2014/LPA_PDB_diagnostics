@@ -11,6 +11,7 @@ from pylab import plt
 from file_handling import FileWriting
 import matplotlib
 import cubehelix
+import pdb
 
 try:
     import pandas as pd
@@ -471,7 +472,7 @@ def beam_spectrum( frame_num, gamma, w, lwrite = False,
             qname = ["energy", "dQdE"]
             f = FileWriting( qname , "beam_spectrum_%d" %frame_num ,
                             groups = gname)
-            stacked_data = np.stack( (energy, dQdE), axis = 1 )
+            stacked_data = np.concatenate( (energy, dQdE), axis = 1 )
             f.write( stacked_data, np.shape(stacked_data),
                     attrs = [ "MeV", "C" ])
 
@@ -776,14 +777,20 @@ def sorted_by_quantity_beam_property ( frame_num, chosen_particles, qdict,
             quantity_to_analyze = "gamma"
 
         q = chosen_particles[qdict[ quantity_to_analyze ]]
+
+
         # By default, Δgamma = 2 in a bin
         if quantity_to_analyze in ["x", "y", "z"]:
-            sigma = wstd( q, chosen_particles[qdict[ "w" ]])
-            ave = np.average( q, weights = chosen_particles[qdict[ "w" ]] )
-            # we define a range of bins based on sigma values
-            steps = np.array([  ave - 4*sigma, ave - 3*sigma,
+            if num_bins is None:
+                sigma = wstd( q, chosen_particles[qdict[ "w" ]])
+                ave = np.average( q, weights = chosen_particles[qdict[ "w" ]] )
+                # we define a range of bins based on sigma values
+                steps = np.array([  ave - 4*sigma, ave - 3*sigma,
                                 ave - 2*sigma, ave - sigma, ave, ave + sigma,
                                 ave + 2*sigma, ave + 3*sigma, ave + 4*sigma])
+
+            else:
+                steps = np.linspace(np.min(q), np.max(q), num = num_bins)
 
         else:
             num_bins = int( (np.max(q) - np.min(q))/2 )
@@ -843,21 +850,21 @@ def sorted_by_quantity_beam_property ( frame_num, chosen_particles, qdict,
                 f = FileWriting( qname , "sorted_by_%s_beam_%s_%s_%s_%d" \
                                 %(quantity_to_analyze, b_property, direction,
                                 sp_name, frame_num ))
-                stacked_data = np.stack( (mid_bin, prop), axis = 0 )
+                stacked_data = np.concatenate( (mid_bin, prop), axis = 0 )
 
             elif b_property == "energy":
                 gname = ["avgE", "sigmaE"]
                 f = FileWriting( qname , "sorted_by_%s_beam_%s_%s_%d" \
                                 %(quantity_to_analyze, b_property,
                                 sp_name, frame_num ), groups = gname)
-                list_mid_bin = np.stack((mid_bin, mid_bin), axis = 0)
-                stacked_data = np.stack( (list_mid_bin, prop), axis = 1 )
+                list_mid_bin = np.concatenate((mid_bin, mid_bin), axis = 0)
+                stacked_data = np.concatenate( (list_mid_bin, prop), axis = 1 )
 
             elif b_property == "divergence":
                 f = FileWriting( qname , "sorted_by_%s_beam_%s_%s_%s_%d" \
                                 %(quantity_to_analyze, b_property, direction,
                                 sp_name, frame_num ))
-                stacked_data = np.stack( (mid_bin, prop), axis = 0 )
+                stacked_data = np.concatenate( (mid_bin, prop), axis = 0 )
 
             f.write( stacked_data, np.shape(stacked_data) ,
                     attrs = [ "arb. units", "m.rad" ])
@@ -1045,7 +1052,7 @@ def sorted_by_gamma_beam_emittance ( frame_num, chosen_particles, qdict,
             qname = [quantity_to_analyze , "emittance"]
             f = FileWriting( qname , "sorted_by_%s_beam_emittance_%s_%s_%d" \
                             %(quantity_to_analyze, direction, sp_name, frame_num ))
-            stacked_data = np.stack( (mid_bin, emit), axis = 0 )
+            stacked_data = np.concatenate( (mid_bin, emit), axis = 0 )
             f.write( stacked_data, np.shape(stacked_data) ,
                     attrs = [ "arb. units", "m.rad" ])
 
