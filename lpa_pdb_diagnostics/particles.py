@@ -472,7 +472,7 @@ def beam_spectrum( frame_num, gamma, w, lwrite = False,
             qname = ["energy", "dQdE"]
             f = FileWriting( qname , "beam_spectrum_%d" %frame_num ,
                             groups = gname)
-            stacked_data = np.concatenate( (energy, dQdE), axis = 1 )
+            stacked_data = np.dstack( (energy, dQdE))[0]
             f.write( stacked_data, np.shape(stacked_data),
                     attrs = [ "MeV", "C" ])
 
@@ -850,21 +850,21 @@ def sorted_by_quantity_beam_property ( frame_num, chosen_particles, qdict,
                 f = FileWriting( qname , "sorted_by_%s_beam_%s_%s_%s_%d" \
                                 %(quantity_to_analyze, b_property, direction,
                                 sp_name, frame_num ))
-                stacked_data = np.concatenate( (mid_bin, prop), axis = 0 )
+                stacked_data = np.vstack( (mid_bin, prop) )
 
             elif b_property == "energy":
                 gname = ["avgE", "sigmaE"]
                 f = FileWriting( qname , "sorted_by_%s_beam_%s_%s_%d" \
                                 %(quantity_to_analyze, b_property,
                                 sp_name, frame_num ), groups = gname)
-                list_mid_bin = np.concatenate((mid_bin, mid_bin), axis = 0)
-                stacked_data = np.concatenate( (list_mid_bin, prop), axis = 1 )
+                list_mid_bin = np.vstack((mid_bin, mid_bin) )
+                stacked_data = np.dstack( (list_mid_bin, prop))[0]
 
             elif b_property == "divergence":
                 f = FileWriting( qname , "sorted_by_%s_beam_%s_%s_%s_%d" \
                                 %(quantity_to_analyze, b_property, direction,
                                 sp_name, frame_num ))
-                stacked_data = np.concatenate( (mid_bin, prop), axis = 0 )
+                stacked_data = np.vstack( (mid_bin, prop) )
 
             f.write( stacked_data, np.shape(stacked_data) ,
                     attrs = [ "arb. units", "m.rad" ])
@@ -1052,7 +1052,7 @@ def sorted_by_gamma_beam_emittance ( frame_num, chosen_particles, qdict,
             qname = [quantity_to_analyze , "emittance"]
             f = FileWriting( qname , "sorted_by_%s_beam_emittance_%s_%s_%d" \
                             %(quantity_to_analyze, direction, sp_name, frame_num ))
-            stacked_data = np.concatenate( (mid_bin, emit), axis = 0 )
+            stacked_data = np.vstack( (mid_bin, emit) )
             f.write( stacked_data, np.shape(stacked_data) ,
                     attrs = [ "arb. units", "m.rad" ])
 

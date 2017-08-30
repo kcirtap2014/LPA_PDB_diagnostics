@@ -184,7 +184,7 @@ class FieldInstant():
         if lwrite:
             qname = ["z", "envelop"]
             f = FileWriting( qname , "BeamEnvelop" )
-            stacked_data = np.concatenate( (z_envelop, envelop), axis = 0 )
+            stacked_data = np.vstack( (z_envelop, envelop) )
             f.write( stacked_data, np.shape(stacked_data) , attrs = [ "m", "V/m" ])
 
         return (z_envelop, envelop)
