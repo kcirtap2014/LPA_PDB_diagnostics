@@ -2,7 +2,7 @@ import cPickle as pickle
 import numpy as np
 import math
 import sys
-from scipy.constants import e
+from scipy.constants import e, epsilon_0
 from generics import gamma2Energy, leftRightFWHM, \
                      bilinearInterpolation, w2charge, wstd, savitzkyGolay, \
                      ROI_by_peak, peak_indexes, wavg
