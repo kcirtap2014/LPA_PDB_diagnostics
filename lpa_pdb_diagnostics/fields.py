@@ -18,16 +18,18 @@ class FieldInstant():
         Parameters:
         -----------
         laser_pol: a numpy float
-            laser polarization, 0 if in the x-direction, pi/2 if in the y-direction
+            laser polarization, 0 if in the x-direction, pi/2 if
+            in the y-direction
 
         filename: string
-            add the name of the file if pdb, otherwise add the name of the folder such as "./diags/hdf5/" if it's a h5
+            add the name of the file if pdb, otherwise add the name of
+            the folder such as "./diags/hdf5/" if it's a h5
 
         quantities: a 1D array
             array of the quantities
         """
 
-        print "** Processing ** Fields: Intialisation of "+str(filename)+" **"
+        print "** Processing ** Fields: Intialisation of "+str(filename)+ " **"
 
         self.quantities = quantities
         self.it = None

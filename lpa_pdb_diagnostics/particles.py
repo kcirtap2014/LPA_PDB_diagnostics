@@ -711,6 +711,105 @@ def beam_energy_spread( energy, dQdE, lfwhm = True, peak = None ):
 
     return deltaE, deltaEE
 
+def point2point( frame_num, chosen_particles, qdict, species):
+    import pdb
+    """
+    calculate E field based on point-to-point interaction model.
+    Fubiani et al. PRSTAB 9, 064402 (2006)
+
+    Paramaters:
+    -----------
+    frame_num: int
+        frame number, for writing purpose
+
+    chosen_particles: ndarray
+        consists of quantities of selected particles
+
+    species: string
+        species name for writing purpose. Default: None
+
+    qdict: dict
+        dictionary that contains the correspondance to the array
+        "chosen particles" indices
+
+    Returns:
+    --------
+    Efield: ndarray
+        a dictionary of E fields
+
+    lwrite: boolean
+        Save data of the emittance distribution if True. Default: False
+    """
+
+    r0 = e**2/(4*np.pi*epsilon_0*m_e*c**2)
+    x = chosen_particles[qdict[ "x" ]]
+    y = chosen_particles[qdict[ "y" ]]
+    z = chosen_particles[qdict[ "z" ]]
+    gamma = chosen_particles[qdict[ "gamma" ]]
+    beta = np.sqrt(1.-1./gamma**2)
+
+    xij_prime = np.zeros((len(x),len(x)))
+    yij_prime = np.zeros((len(y),len(y)))
+    zij_prime = np.zeros((len(z),len(z)))
+
+    Exij_prime = np.zeros((len(z),len(z)))
+    Eyij_prime = np.zeros((len(z),len(z)))
+    Ezij_prime = np.zeros((len(z),len(z)))
+    Ex = np.zeros(len(x))
+    Ey = np.zeros(len(x))
+    Ez = np.zeros(len(x))
+    Bx = np.zeros(len(x))
+    By = np.zeros(len(x))
+    Bz = np.zeros(len(x))
+    pdb.set_trace()
+    for i in range(0, len(x)-1):
+        for j in range(i, len(x)):
+            xij = x[i] - x[j]
+            yij = y[i] - y[j]
+            zij = z[i] - z[j]
+            rij = np.sqrt(xij**2 + yij**2 + zij**2)
+            xij_prime[i,j] = xij + (gamma[j]**2/(gamma[j] + 1))\
+                           *(xij*beta[j]))*beta[j]
+            yij_prime[i,j] = yij + (gamma[j]**2/(gamma[j] + 1))\
+                           *(yij*beta[j]))*beta[j]
+            zij_prime[i,j] = zij + (gamma[j]**2/(gamma[j] + 1))\
+                           *(zij*beta[j]))*beta[j]
+            rij_prime = np.sqrt(xij_prime[i,j]**2 + yij_prime[i,j]**2 +\
+                            zij_prime[i,j]**2)
+
+            if rij_prime<r0:
+                r = r0
+            else:
+                r = rij_prime
+
+            Exij_prime[i,j] = (Q/(4*np.pi*epsilon_0))*\
+                                (xij_prime/np.absolute(r)**3
+            Eyij_prime[i,j] = (Q/(4*np.pi*epsilon_0))*\
+                                (yij_prime/np.absolute(r)**3
+            Ezij_prime[i,j] = (Q/(4*np.pi*epsilon_0))*\
+                                (zij_prime/np.absolute(r)**3
+            pdb.set_trace()
+
+    for i in range(0, len(x)-1):
+        for j in range(i, len(x)):
+
+            Ex[i] += gamma[j]*(Exij_prime[i,j] - \
+                gamma[j]/(gamma[j]+1)*(Exij_prime[i,j]*beta[j])*beta[j])
+            Ey[i] += gamma[j]*(Eyij_prime[i,j] - \
+                gamma[j]/(gamma[j]+1)*(Eyij_prime[i,j]*beta[j])*beta[j])
+            Ez[i] += gamma[j]*(Ezij_prime[i,j] - \
+                gamma[j]/(gamma[j]+1)*(Ezij_prime[i,j]*beta[j])*beta[j]
+
+            Bx[i] -= gamma[j]*beta[j]*Ezij_prime[i,j]
+            By[i] -= gamma[j]*beta[j]*Exij_prime[i,j]
+            Bz[i] -= gamma[j]*beta[j]*Eyij_prime[i,j]
+            pdb.set_trace()
+
+    fields = dict()
+    fields = {"Ex":Ex, "Ey":Ey, "Ez":Ez, "Bx":Bx, "By":By, "Bz": Bz}
+
+    return fields
+
 def sorted_by_quantity_beam_property ( frame_num, chosen_particles, qdict,
                                     direction = None, quantity_to_analyze = None,
                                     species = None, b_property = "emittance",
