@@ -769,11 +769,11 @@ def point2point( frame_num, chosen_particles, qdict, species):
             zij = z[i] - z[j]
             rij = np.sqrt(xij**2 + yij**2 + zij**2)
             xij_prime[i,j] = xij + (gamma[j]**2/(gamma[j] + 1))\
-                           *(xij*beta[j]))*beta[j]
+                           *(xij*beta[j])*beta[j]
             yij_prime[i,j] = yij + (gamma[j]**2/(gamma[j] + 1))\
-                           *(yij*beta[j]))*beta[j]
+                           *(yij*beta[j])*beta[j]
             zij_prime[i,j] = zij + (gamma[j]**2/(gamma[j] + 1))\
-                           *(zij*beta[j]))*beta[j]
+                           *(zij*beta[j])*beta[j]
             rij_prime = np.sqrt(xij_prime[i,j]**2 + yij_prime[i,j]**2 +\
                             zij_prime[i,j]**2)
 
@@ -783,11 +783,11 @@ def point2point( frame_num, chosen_particles, qdict, species):
                 r = rij_prime
 
             Exij_prime[i,j] = (Q/(4*np.pi*epsilon_0))*\
-                                (xij_prime/np.absolute(r)**3
+                                (xij_prime/np.absolute(r)**3)
             Eyij_prime[i,j] = (Q/(4*np.pi*epsilon_0))*\
-                                (yij_prime/np.absolute(r)**3
+                                (yij_prime/np.absolute(r)**3)
             Ezij_prime[i,j] = (Q/(4*np.pi*epsilon_0))*\
-                                (zij_prime/np.absolute(r)**3
+                                (zij_prime/np.absolute(r)**3)
             pdb.set_trace()
 
     for i in range(0, len(x)-1):
@@ -798,7 +798,7 @@ def point2point( frame_num, chosen_particles, qdict, species):
             Ey[i] += gamma[j]*(Eyij_prime[i,j] - \
                 gamma[j]/(gamma[j]+1)*(Eyij_prime[i,j]*beta[j])*beta[j])
             Ez[i] += gamma[j]*(Ezij_prime[i,j] - \
-                gamma[j]/(gamma[j]+1)*(Ezij_prime[i,j]*beta[j])*beta[j]
+                gamma[j]/(gamma[j]+1)*(Ezij_prime[i,j]*beta[j])*beta[j])
 
             Bx[i] -= gamma[j]*beta[j]*Ezij_prime[i,j]
             By[i] -= gamma[j]*beta[j]*Exij_prime[i,j]
