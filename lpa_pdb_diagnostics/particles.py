@@ -2,7 +2,7 @@ import cPickle as pickle
 import numpy as np
 import math
 import sys
-from scipy.constants import e, epsilon_0
+from scipy.constants import e, epsilon_0, m_e, c
 from generics import gamma2Energy, leftRightFWHM, \
                      bilinearInterpolation, w2charge, wstd, savitzkyGolay, \
                      ROI_by_peak, peak_indexes, wavg
@@ -711,7 +711,7 @@ def beam_energy_spread( energy, dQdE, lfwhm = True, peak = None ):
 
     return deltaE, deltaEE
 
-def point2point( frame_num, chosen_particles, qdict, species):
+def point2point( frame_num, chosen_particles, qdict, species, fieldx, fieldz):
     import pdb
     """
     calculate E field based on point-to-point interaction model.
@@ -732,6 +732,12 @@ def point2point( frame_num, chosen_particles, qdict, species):
         dictionary that contains the correspondance to the array
         "chosen particles" indices
 
+    fieldx: numpy array
+        grid in the x-direction
+
+    fieldz: numpy array
+        grid in the y-direction
+        
     Returns:
     --------
     Efield: ndarray
@@ -747,63 +753,55 @@ def point2point( frame_num, chosen_particles, qdict, species):
     z = chosen_particles[qdict[ "z" ]]
     gamma = chosen_particles[qdict[ "gamma" ]]
     beta = np.sqrt(1.-1./gamma**2)
+    Q = -beam_charge( chosen_particles[qdict[ "w" ]])
 
-    xij_prime = np.zeros((len(x),len(x)))
-    yij_prime = np.zeros((len(y),len(y)))
-    zij_prime = np.zeros((len(z),len(z)))
-
-    Exij_prime = np.zeros((len(z),len(z)))
-    Eyij_prime = np.zeros((len(z),len(z)))
-    Ezij_prime = np.zeros((len(z),len(z)))
     Ex = np.zeros(len(x))
     Ey = np.zeros(len(x))
     Ez = np.zeros(len(x))
     Bx = np.zeros(len(x))
     By = np.zeros(len(x))
     Bz = np.zeros(len(x))
-    pdb.set_trace()
+
     for i in range(0, len(x)-1):
         for j in range(i, len(x)):
             xij = x[i] - x[j]
             yij = y[i] - y[j]
             zij = z[i] - z[j]
             rij = np.sqrt(xij**2 + yij**2 + zij**2)
-            xij_prime[i,j] = xij + (gamma[j]**2/(gamma[j] + 1))\
+            xij_prime = xij + (gamma[j]**2/(gamma[j] + 1))\
                            *(xij*beta[j])*beta[j]
-            yij_prime[i,j] = yij + (gamma[j]**2/(gamma[j] + 1))\
+            yij_prime = yij + (gamma[j]**2/(gamma[j] + 1))\
                            *(yij*beta[j])*beta[j]
-            zij_prime[i,j] = zij + (gamma[j]**2/(gamma[j] + 1))\
+            zij_prime = zij + (gamma[j]**2/(gamma[j] + 1))\
                            *(zij*beta[j])*beta[j]
-            rij_prime = np.sqrt(xij_prime[i,j]**2 + yij_prime[i,j]**2 +\
-                            zij_prime[i,j]**2)
+            rij_prime = np.sqrt(xij_prime**2 + yij_prime**2 +\
+                            zij_prime**2)
 
             if rij_prime<r0:
                 r = r0
             else:
                 r = rij_prime
 
-            Exij_prime[i,j] = (Q/(4*np.pi*epsilon_0))*\
+            Exij_prime = (Q/(4*np.pi*epsilon_0))*\
                                 (xij_prime/np.absolute(r)**3)
-            Eyij_prime[i,j] = (Q/(4*np.pi*epsilon_0))*\
+            Eyij_prime = (Q/(4*np.pi*epsilon_0))*\
                                 (yij_prime/np.absolute(r)**3)
-            Ezij_prime[i,j] = (Q/(4*np.pi*epsilon_0))*\
+            Ezij_prime = (Q/(4*np.pi*epsilon_0))*\
                                 (zij_prime/np.absolute(r)**3)
-            pdb.set_trace()
+            #pdb.set_trace()
 
-    for i in range(0, len(x)-1):
-        for j in range(i, len(x)):
+            Ex[i] += gamma[j]*(Exij_prime - \
+                gamma[j]/(gamma[j]+1)*(Exij_prime*beta[j])*beta[j])
+            Ey[i] += gamma[j]*(Eyij_prime - \
+                gamma[j]/(gamma[j]+1)*(Eyij_prime*beta[j])*beta[j])
+            Ez[i] += gamma[j]*(Ezij_prime - \
+                gamma[j]/(gamma[j]+1)*(Ezij_prime*beta[j])*beta[j])
 
-            Ex[i] += gamma[j]*(Exij_prime[i,j] - \
-                gamma[j]/(gamma[j]+1)*(Exij_prime[i,j]*beta[j])*beta[j])
-            Ey[i] += gamma[j]*(Eyij_prime[i,j] - \
-                gamma[j]/(gamma[j]+1)*(Eyij_prime[i,j]*beta[j])*beta[j])
-            Ez[i] += gamma[j]*(Ezij_prime[i,j] - \
-                gamma[j]/(gamma[j]+1)*(Ezij_prime[i,j]*beta[j])*beta[j])
+            Bx[i] -= gamma[j]*beta[j]*Ezij_prime
+            By[i] -= gamma[j]*beta[j]*Exij_prime
+            Bz[i] -= gamma[j]*beta[j]*Eyij_prime
 
-            Bx[i] -= gamma[j]*beta[j]*Ezij_prime[i,j]
-            By[i] -= gamma[j]*beta[j]*Exij_prime[i,j]
-            Bz[i] -= gamma[j]*beta[j]*Eyij_prime[i,j]
-            pdb.set_trace()
+    #Interpolation back to the grid
 
     fields = dict()
     fields = {"Ex":Ex, "Ey":Ey, "Ez":Ez, "Bx":Bx, "By":By, "Bz": Bz}

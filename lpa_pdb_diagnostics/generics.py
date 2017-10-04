@@ -650,8 +650,52 @@ def charge_density( x, gamma, w, reduction_factor = None):
 
     return Hmasked, extent
 
+def energy_density( x, gamma, w, reduction_factor = None):
+    """
+    returns the histogram weighted by energy.
+
+    Parameters:
+    -----------
+    x: 1D numpy array
+        distribution in position (can be x, y or z)
+
+    gamma: 1D numpy array
+        distribution in momentum (can be ux, uy, uz)
+
+    w: 1D numpy array
+        weight distribution of the particles
+
+    reduction_factor: int
+        reduction factor for energy so that the max(energy) will be resized to
+        the max(field). Default: None
+
+    Returns:
+    --------
+    Hmasked: 2D numpy array
+        2D distribution of the charge
+
+    extent: 1D array
+        necessary information on the limits in both x and y for reconstuction
+        purpose
+
+    """
+    charge = w2charge( w )
+    energy = gamma2Energy( gamma )
+    bin_num = int((max(charge)-min(charge))*((max(x) - min(x))/1e-6))
+
+    if reduction_factor is not None:
+        charge *= reduction_factor
+
+    H, xedges, yedges = np.histogram2d(charge, x,
+                        bins = bin_num, weights = energy)
+    Hmasked = np.ma.masked_where(H == 0,H)
+    extent = [ min(x), max(x), min(charge), max(charge) ]
+
+    return Hmasked, extent
+
 def bigPicture( frame_num, p_z, p_gamma, p_w, f_z, f_wake, f_laser,
-                lsavefigure = True, lwrite = False, reduction_factor = None ):
+                lsavefigure = True, lwrite = False, reduction_factor = None,
+                density = 'charge' ):
     """
     Plots the big picture.
 
@@ -688,6 +732,10 @@ def bigPicture( frame_num, p_z, p_gamma, p_w, f_z, f_wake, f_laser,
         reduction factor for energy so that the max(energy) will be resized to
         the max(field). Default: None
 
+    density: string
+        either weighted by energy or charge. By default: "charge" means weighted
+        by charge
+
     """
 
     if 'inline' in matplotlib.get_backend():
@@ -699,9 +747,22 @@ def bigPicture( frame_num, p_z, p_gamma, p_w, f_z, f_wake, f_laser,
     cm_peak = plt.cm.get_cmap('RdBu')
 
     try:
-        if reduction_factor is None:
-            reduction_factor = 2*max(f_laser)/max(p_gamma)
-        Hmasked, extent = charge_density( p_z, p_gamma, p_w, reduction_factor )
+
+        if density == "charge":
+            if reduction_factor is None:
+                reduction_factor = 2*max(f_laser)/max(p_gamma)
+
+            Hmasked, extent = charge_density( p_z, p_gamma,
+            p_w, reduction_factor )
+
+        elif density == "energy":
+            charge = w2charge( p_w )*1e9 # to convert it to pC
+
+            if reduction_factor is None:
+                reduction_factor = 2*max(f_laser)/max(charge)
+
+            Hmasked, extent = energy_density( p_z, p_gamma,
+            p_w )
 
         sc_peak = ax.imshow( Hmasked, extent = extent, interpolation='nearest',
                         origin='lower', cmap=cm_peak, aspect = "auto")
@@ -711,10 +772,19 @@ def bigPicture( frame_num, p_z, p_gamma, p_w, f_z, f_wake, f_laser,
 
         # Writing the particle
         if lwrite:
-            qname_particle = [ "charge_density" , "extent" ]
-            fp = FileWriting( qname_particle , "Charge_density_%d" %frame_num )
+            if density == "charge":
+                qname_particle = [ "charge_density" , "extent" ]
+                fp = FileWriting( qname_particle ,
+                "Charge_density_%d" %frame_num )
+                attrs = ["C/m^2", "m"]
+            elif density == "energy":
+                qname_particle = [ "energy_density" , "extent" ]
+                fp = FileWriting( qname_particle ,
+                "Energy_density_%d" %frame_num )
+                attrs = ["MeV/m^2", "m"]
+
             data = [Hmasked.data] + [extent]
-            fp.write( data, np.shape(data) , attrs = ["C/m^2", "m"])
+            fp.write( data, np.shape(data) , attrs = attrs)
 
     except ValueError:
         reduction_factor = 0
@@ -727,8 +797,13 @@ def bigPicture( frame_num, p_z, p_gamma, p_w, f_z, f_wake, f_laser,
     ax.set_xlim(min(f_z), max(f_z))
     ax.set_xlabel(r"$\mathrm{z\,(m)}$")
     if reduction_factor !=0:
-        ax.set_ylabel(r"$\mathrm{Norm.\, amp.}$"+"\n"+ \
+        if density =="charge":
+            ax.set_ylabel(r"$\mathrm{Norm.\, amp.}$"+"\n"+ \
                         r"$\mathrm{Energy/%d\,(MeV)}$" \
+                        %int(1/reduction_factor))
+        elif density == "energy":
+            ax.set_ylabel(r"$\mathrm{Norm.\, amp.}$"+"\n"+ \
+                        r"$\mathrm{Charge/%d\,(pC)}$" \
                         %int(1/reduction_factor))
     else:
         ax.set_ylabel(r"$Norm.\, amp.$")
