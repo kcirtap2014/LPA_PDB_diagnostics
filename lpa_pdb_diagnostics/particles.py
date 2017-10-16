@@ -406,7 +406,11 @@ def beam_spectrum( frame_num, gamma, w, lwrite = False,
         charge in Coulomb/MeV
     """
     try:
-        num_species = len(gamma)
+        if not isinstance(gamma, list):
+            gamma = [gamma]
+            w = [w]
+            num_species = len(gamma)
+
         energy = []
         dQdE = []
 

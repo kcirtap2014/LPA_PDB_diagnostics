@@ -1,3 +1,4 @@
+README.md
 setup.py
 LPA_PDB_diagnostics.egg-info/PKG-INFO
 LPA_PDB_diagnostics.egg-info/SOURCES.txt
@@ -13,4 +14,7 @@ lpa_pdb_diagnostics/generics.py
 lpa_pdb_diagnostics/particle_tracking.py
 lpa_pdb_diagnostics/particles.py
 lpa_pdb_diagnostics/unit_test.py
+lpa_pdb_diagnostics.egg-info/PKG-INFO
 lpa_pdb_diagnostics.egg-info/SOURCES.txt
+lpa_pdb_diagnostics.egg-info/dependency_links.txt
+lpa_pdb_diagnostics.egg-info/top_level.txt
