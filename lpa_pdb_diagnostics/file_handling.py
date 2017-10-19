@@ -104,8 +104,11 @@ class FileWriting():
                         dset = self.group_object[indexg].require_dataset(
                                 quantity, size, dtype = datatype)
 
-                        dset[dset_index_start:dset_index_stop] = \
+                        try:
+                            dset[dset_index_start:dset_index_stop] = \
                                                         data[indexg][indexq][:]
+                        except TypeError:
+                            pdb.set_trace()
 
                     else:
                         dset = self.group_object[indexg].require_dataset(
