@@ -2,7 +2,9 @@ import numpy as np
 from generics import randintGenerator
 from file_handling import FileWriting
 from particles import ParticleInstant
+from operator import itemgetter
 import pdb
+
 class ParticleTracking():
     """
     Class that traces the evolution of the quantities of the particles. One
@@ -11,7 +13,7 @@ class ParticleTracking():
 
     def __init__(self, file_array, chosen_particles, species,
                 quantities = ["PID", "Weight", "Position", "Momentum", "E", "B"],
-                NUM_TRACKED_PARTICLES = None, write_period = 20):
+                NUM_TRACKED_PARTICLES = None, write_period = 10):
 
         """
         Initialize the ParticleTracking object.
@@ -92,17 +94,19 @@ class ParticleTracking():
         """
 
         previous_chosen_particles = self.chosen_particles.copy()
-        previous_ssn = previous_chosen_particles[:, 0].astype(int)
+        previous_ssn = previous_chosen_particles[:, 0].astype(long)
         ssn_dict = {} # for indexing purpose
         self.particle_buffer = [[] for i in xrange(self.NUM_TRACKED_PARTICLES)]
 
         # Populate the dictionary
         for index, ssn in enumerate (previous_ssn):
-            ssn_dict[ssn] = index
+            # 0 for counting, will start when first go into the loop of missing_ssn
+            ssn_dict[ssn] = [index, 0]
 
         # Populate the particle_buffer with particle quantities
         # of the last iteration
-        for index in xrange( len(ssn_dict) ):
+
+        for k, v in ssn_dict.items():
             # Reshape is done here so that we have information written in this
             # formality:
             # ssn_number | {ssn_number}| {ssn_number} | {ssn_number} | ...
@@ -112,11 +116,10 @@ class ParticleTracking():
             # .                  .              .              .
             # .                  .              .              .
             # .                  .              .              .
-
             reshaped_previous_chosen_particles = np.reshape((
-                    previous_chosen_particles[index]),
+                    previous_chosen_particles[v[0]]),
                     (self.num_quantities, 1))
-            self.particle_buffer[index] = reshaped_previous_chosen_particles
+            self.particle_buffer[v[0]] = reshaped_previous_chosen_particles
 
         # Iteration through all files and all ssnum of the traced particles,
         # look for the index of particles,
@@ -128,7 +131,8 @@ class ParticleTracking():
 
         # some indices for the population of dset
         dset_index_start  = 0
-        dset_index_stop = 2
+        dset_index_stop = self.write_period + 2 # because there are two extra at
+        # the beginning to be dumped
 
         # We start the iteration at before last timestep, N
         print "Running particle tracking algorithm. This may take a while..."
@@ -145,32 +149,61 @@ class ParticleTracking():
             # for bookkeeping purpose
             ssn_list = []
 
+            # dealing with missing ssn, zero padding
+            missing_ssn = list(set(ssn_dict.keys())- set(previous_ssn))
+
+            for ssn in missing_ssn:
+                # Start counting for missing values
+                ssn_dict[ssn][1] += 1
+                reshaped_current_chosen_particles = np.zeros(
+                        (self.num_quantities, 1))
+
+                if len(self.particle_buffer[ssn_dict[ssn][0]]) == 0:
+                    self.particle_buffer[ssn_dict[ssn][0]] = \
+                            reshaped_current_chosen_particles
+                else:
+                    self.particle_buffer[ssn_dict[ssn][0]] = np.hstack(
+                        (self.particle_buffer[ssn_dict[ssn][0]],
+                            reshaped_current_chosen_particles))
+
+                if ssn_dict[ssn][1] == 1:
+                    # do it again first time going into this for loop
+                    if len(self.particle_buffer[ssn_dict[ssn][0]]) == 0:
+                        self.particle_buffer[ssn_dict[ssn][0]] = \
+                                reshaped_current_chosen_particles
+                    else:
+                        self.particle_buffer[ssn_dict[ssn][0]] = np.hstack(
+                            (self.particle_buffer[ssn_dict[ssn][0]],
+                                reshaped_current_chosen_particles))
+
+
             # Iterate each ssnum
             for i, ssn in enumerate( previous_ssn ) :
                 index = binarySearch( ssn,
-                        current_chosen_particles[:, 0].astype(int),
+                        current_chosen_particles[:, 0].astype(long),
                         0, len(current_chosen_particles[:, 0])  )
 
                 if index != -1:
+                    # only keep the ssn when it's found
                     ssn_list.append(ssn)
                     reshaped_current_chosen_particles = np.reshape((
                             current_chosen_particles[index]),
                             (self.num_quantities, 1))
 
-                    if len(self.particle_buffer[ssn_dict[ssn]]) == 0:
-                        self.particle_buffer[ssn_dict[ssn]] = \
+                    if len(self.particle_buffer[ssn_dict[ssn][0]]) == 0:
+                        self.particle_buffer[ssn_dict[ssn][0]] = \
                             reshaped_current_chosen_particles
                     else:
-                        self.particle_buffer[ssn_dict[ssn]] = np.hstack((self.particle_buffer[ssn_dict[ssn]],
+                        self.particle_buffer[ssn_dict[ssn][0]] = np.hstack(
+                            (self.particle_buffer[ssn_dict[ssn][0]],
                             reshaped_current_chosen_particles))
-
             # Dump the file at a regular interval to avoid having a large
             # particle_buffer
-            if (ifile%self.write_period==0 or ifile==len(self.file_array)-2):
+            if ((ifile != 0) and (ifile%self.write_period==0 or \
+                ifile==len(self.file_array)-2)):
                 # Call the file writing object to dump data in the hdf5 file
                 close = ( ifile == len(self.file_array)-2 )
                 print "in the loop of particle tracking"
-
                 self.FW.write(self.particle_buffer, np.shape(self.file_array),
                 dset_index_start = dset_index_start,
                 dset_index_stop = dset_index_stop, close = close)
@@ -178,8 +211,8 @@ class ParticleTracking():
                 # Re-indexing of dset_index_start and dset_index_stop
                 temp = dset_index_stop
 
-                if ifile == len(self.file_array)-2:
-                    dset_index_stop = len(self.file_array)
+                if (dset_index_stop + self.write_period) > len(self.file_array)-2 :
+                    dset_index_stop = len(self.file_array) 
                 else:
                     dset_index_stop += self.write_period
 
@@ -203,7 +236,9 @@ def sortArray(unsorted_chosen_particles):
     """
 
     #We sort the array according to order 0 for ssnum
-    sorted_chosen_particles = np.sort(unsorted_chosen_particles, axis=0)
+    sorted_chosen_particles = np.array(sorted(unsorted_chosen_particles,
+                                    key=itemgetter(0)))
+    #sorted_chosen_particles = np.sort(unsorted_chosen_particles, axis=0)
 
     return sorted_chosen_particles
 

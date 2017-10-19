@@ -1,6 +1,7 @@
 import h5py
 import numpy as np
 import config
+import pdb
 
 class FileWriting():
     """
@@ -93,10 +94,16 @@ class FileWriting():
                     #print "size of data", np.shape(data[indexg][indexq][:])
                     #print "current dset size",
                     #np.shape(dset[dset_index_start:dset_index_stop])
+
                     if (dset_index_start is not None) and \
                         (dset_index_stop is not None):
+                        if quantity == "PID":
+                            datatype = long
+                        else:
+                            datatype = float
                         dset = self.group_object[indexg].require_dataset(
-                                quantity, size, dtype = float)
+                                quantity, size, dtype = datatype)
+
                         dset[dset_index_start:dset_index_stop] = \
                                                         data[indexg][indexq][:]
 
