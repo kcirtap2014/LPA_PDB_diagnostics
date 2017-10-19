@@ -202,8 +202,8 @@ class ParticleTracking():
             if ((ifile != 0) and (ifile%self.write_period==0 or \
                 ifile==len(self.file_array)-2)):
                 # Call the file writing object to dump data in the hdf5 file
+                print "Writing into file..."
                 close = ( ifile == len(self.file_array)-2 )
-                print "in the loop of particle tracking"
                 self.FW.write(self.particle_buffer, np.shape(self.file_array),
                 dset_index_start = dset_index_start,
                 dset_index_stop = dset_index_stop, close = close)
@@ -212,7 +212,7 @@ class ParticleTracking():
                 temp = dset_index_stop
 
                 if (dset_index_stop + self.write_period) > len(self.file_array)-2 :
-                    dset_index_stop = len(self.file_array) 
+                    dset_index_stop = len(self.file_array)
                 else:
                     dset_index_stop += self.write_period
 
