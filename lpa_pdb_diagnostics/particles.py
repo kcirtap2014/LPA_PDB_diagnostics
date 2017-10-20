@@ -409,8 +409,7 @@ def beam_spectrum( frame_num, gamma, w, lwrite = False,
         if not isinstance(gamma, list):
             gamma = [gamma]
             w = [w]
-            num_species = len(gamma)
-
+        num_species = len(gamma)
         energy = []
         dQdE = []
 
@@ -1146,6 +1145,58 @@ def beam_divergence( chosen_particles, qdict, direction ):
     # Return the result
     return ( div )
 
+def apparent_beam_size( chosen_particles, qdict, direction ):
+    """
+    Calculate the apparent beam_size of the selected particles.
+
+    Parameters:
+    -----------
+    chosen_particles: ndarray
+        consists of quantities of selected particles
+
+    qdict: dict
+        dictionary that contains the correspondance to the array
+        "chosen particles" indices
+
+    direction: string
+        transverse directions. Can be either "x" or "y"
+
+    Returns
+    -------
+    div: float
+        - apparent size in the selected direction in m
+    """
+
+    try:
+        #do analysis according to the direction
+        if direction == "x":
+            x = chosen_particles[qdict["x"]]
+
+        elif direction =="y":
+            x = chosen_particles[qdict["y"]]
+
+        else:
+            raise "Invalid direction"
+
+        theta = beam_divergence( chosen_particles, qdict, direction )
+        w = chosen_particles[qdict["w"]]
+
+        # calculate the weighted emittance of the bunch
+        xavg = np.average( x , weights = w )
+        xsq = np.average( (x - xavg)** 2, weights = w )
+        xtheta = np.average( (x - xavg)*theta,  weights = w )
+        weighted_emittance = np.sqrt( xsq * theta**2 - xtheta ** 2 )
+
+        # calculate the apparent size of the bunch
+        sigma = weighted_emittance/xtheta
+
+    except ValueError:
+        print "Beam apparent size: Analysis is not performed because" + \
+              "no particles are detected."
+        sigma = np.NaN
+
+    # Return the result
+    return ( sigma )
 
 def emittance_1D ( x, ux, w ):
     """

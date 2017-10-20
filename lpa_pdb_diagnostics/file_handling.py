@@ -90,10 +90,6 @@ class FileWriting():
         if self.groups is not None:
             for indexg in xrange(len(self.groups)):
                 for indexq, quantity in enumerate(self.dname):
-                    #print "size of dset", dset
-                    #print "size of data", np.shape(data[indexg][indexq][:])
-                    #print "current dset size",
-                    #np.shape(dset[dset_index_start:dset_index_stop])
 
                     if (dset_index_start is not None) and \
                         (dset_index_stop is not None):
@@ -104,11 +100,9 @@ class FileWriting():
                         dset = self.group_object[indexg].require_dataset(
                                 quantity, size, dtype = datatype)
 
-                        try:
-                            dset[dset_index_start:dset_index_stop] = \
+                        dset[dset_index_start:dset_index_stop] = \
                                                         data[indexg][indexq][:]
-                        except TypeError:
-                            pdb.set_trace()
+
 
                     else:
                         dset = self.group_object[indexg].require_dataset(

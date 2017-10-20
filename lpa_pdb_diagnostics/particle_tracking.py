@@ -101,7 +101,7 @@ class ParticleTracking():
         # Populate the dictionary
         for index, ssn in enumerate (previous_ssn):
             # 0 for counting, will start when first go into the loop of missing_ssn
-            ssn_dict[ssn] = [index, 0]
+            ssn_dict[ssn] = index
 
         # Populate the particle_buffer with particle quantities
         # of the last iteration
@@ -117,9 +117,9 @@ class ParticleTracking():
             # .                  .              .              .
             # .                  .              .              .
             reshaped_previous_chosen_particles = np.reshape((
-                    previous_chosen_particles[v[0]]),
+                    previous_chosen_particles[v]),
                     (self.num_quantities, 1))
-            self.particle_buffer[v[0]] = reshaped_previous_chosen_particles
+            self.particle_buffer[v] = reshaped_previous_chosen_particles
 
         # Iteration through all files and all ssnum of the traced particles,
         # look for the index of particles,
@@ -164,12 +164,12 @@ class ParticleTracking():
                             current_chosen_particles[index]),
                             (self.num_quantities, 1))
 
-                    if len(self.particle_buffer[ssn_dict[ssn][0]]) == 0:
-                        self.particle_buffer[ssn_dict[ssn][0]] = \
+                    if len(self.particle_buffer[ssn_dict[ssn]]) == 0:
+                        self.particle_buffer[ssn_dict[ssn]] = \
                             reshaped_current_chosen_particles
                     else:
-                        self.particle_buffer[ssn_dict[ssn][0]] = np.hstack(
-                            (self.particle_buffer[ssn_dict[ssn][0]],
+                        self.particle_buffer[ssn_dict[ssn]] = np.hstack(
+                            (self.particle_buffer[ssn_dict[ssn]],
                             reshaped_current_chosen_particles))
 
             # dealing with missing ssn, zero padding
@@ -177,28 +177,16 @@ class ParticleTracking():
 
             for ssn in missing_ssn:
                 # Start counting for missing values
-                ssn_dict[ssn][1] += 1
                 reshaped_current_chosen_particles = np.zeros(
                         (self.num_quantities, 1))
 
-                if len(self.particle_buffer[ssn_dict[ssn][0]]) == 0:
-                    self.particle_buffer[ssn_dict[ssn][0]] = \
+                if len(self.particle_buffer[ssn_dict[ssn]]) == 0:
+                    self.particle_buffer[ssn_dict[ssn]] = \
                             reshaped_current_chosen_particles
                 else:
-                    self.particle_buffer[ssn_dict[ssn][0]] = np.hstack(
-                        (self.particle_buffer[ssn_dict[ssn][0]],
+                    self.particle_buffer[ssn_dict[ssn]] = np.hstack(
+                        (self.particle_buffer[ssn_dict[ssn]],
                             reshaped_current_chosen_particles))
-
-                if False:#ssn_dict[ssn][1] == 1:
-                    # do it again first time going into this for loop
-                    if len(self.particle_buffer[ssn_dict[ssn][0]]) == 0:
-                        self.particle_buffer[ssn_dict[ssn][0]] = \
-                                reshaped_current_chosen_particles
-                    else:
-                        self.particle_buffer[ssn_dict[ssn][0]] = np.hstack(
-                            (self.particle_buffer[ssn_dict[ssn][0]],
-                                reshaped_current_chosen_particles))
-
 
             # Dump the file at a regular interval to avoid having a large
             # particle_buffer
