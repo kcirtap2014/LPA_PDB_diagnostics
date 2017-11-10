@@ -607,7 +607,7 @@ def savitzkyGolay( y, window_size, order, deriv=0, rate=1 ):
 
     return np.convolve( m[::-1], y, mode='valid')
 
-def charge_density( x, gamma, w, reduction_factor = None):
+def charge_density( x, gamma, w, reduction_factor = None, bin_num = None):
     """
     returns the histogram weighted by charge.
 
@@ -626,6 +626,9 @@ def charge_density( x, gamma, w, reduction_factor = None):
         reduction factor for energy so that the max(energy) will be resized to
         the max(field). Default: None
 
+    bin_num : int
+        required bin number for hisogram plot
+
     Returns:
     --------
     Hmasked: 2D numpy array
@@ -638,7 +641,9 @@ def charge_density( x, gamma, w, reduction_factor = None):
     """
     charge = w2charge( w )
     energy = gamma2Energy( gamma )
-    bin_num = int((max(energy)-min(energy))*((max(x) - min(x))/1e-6))
+
+    if bin_num == None:
+        bin_num = int((max(energy)-min(energy))*((max(x) - min(x))/1e-6))
 
     if reduction_factor is not None:
         energy *= reduction_factor
@@ -651,7 +656,8 @@ def charge_density( x, gamma, w, reduction_factor = None):
     return Hmasked, extent
 
 def bigPicture( frame_num, p_z, p_gamma, p_w, f_z, f_wake, f_laser,
-                lsavefigure = True, lwrite = False, reduction_factor = None ):
+                lsavefigure = True, lwrite = False, reduction_factor = None,
+                bin_num = None):
     """
     Plots the big picture.
 
@@ -688,6 +694,9 @@ def bigPicture( frame_num, p_z, p_gamma, p_w, f_z, f_wake, f_laser,
         reduction factor for energy so that the max(energy) will be resized to
         the max(field). Default: None
 
+    bin_num: int
+        required bin_num for histo plot
+
     """
 
     if 'inline' in matplotlib.get_backend():
@@ -701,7 +710,8 @@ def bigPicture( frame_num, p_z, p_gamma, p_w, f_z, f_wake, f_laser,
     try:
         if reduction_factor is None:
             reduction_factor = 2*max(f_laser)/max(p_gamma)
-        Hmasked, extent = charge_density( p_z, p_gamma, p_w, reduction_factor )
+        Hmasked, extent = charge_density( p_z, p_gamma, p_w, reduction_factor,
+                            bin_num )
 
         sc_peak = ax.imshow( Hmasked, extent = extent, interpolation='nearest',
                         origin='lower', cmap=cm_peak, aspect = "auto")

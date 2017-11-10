@@ -1171,27 +1171,37 @@ def apparent_beam_size( chosen_particles, qdict, direction ):
         #do analysis according to the direction
         if direction == "x":
             x = chosen_particles[qdict["x"]]
+            ux = chosen_particles[qdict["ux"]]
 
         elif direction =="y":
             x = chosen_particles[qdict["y"]]
+            ux = chosen_particles[qdict["uy"]]
 
         else:
             raise "Invalid direction"
 
+        uz = chosen_particles[qdict["uz"]]
         theta = beam_divergence( chosen_particles, qdict, direction )
         w = chosen_particles[qdict["w"]]
 
         # calculate the weighted emittance of the bunch
         xavg = np.average( x , weights = w )
+        thetaavg = np.average( ux/uz , weights = w )
         xsq = np.average( (x - xavg)** 2, weights = w )
-        xtheta = np.average( (x - xavg)*theta,  weights = w )
-        weighted_emittance = np.sqrt( xsq * theta**2 - xtheta ** 2 )
+        thetasq = np.average( (ux/uz - thetaavg)**2,  weights = w )
+        xtheta = np.average( (x - xavg)*(ux/uz - thetaavg), weights = w)
+        weighted_emittance = np.sqrt( xsq * thetasq - xtheta ** 2 )
 
         # calculate the apparent size of the bunch
-        sigma = weighted_emittance/xtheta
+        sigma = weighted_emittance/theta
 
     except ValueError:
         print "Beam apparent size: Analysis is not performed because" + \
+              "no particles are detected."
+        sigma = np.NaN
+
+    except ZeroDivisionError:
+        print "Beam apparent size: Analysis is not performed because " + \
               "no particles are detected."
         sigma = np.NaN
 
