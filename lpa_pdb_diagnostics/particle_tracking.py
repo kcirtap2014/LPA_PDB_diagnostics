@@ -135,7 +135,7 @@ class ParticleTracking():
         # the beginning to be dumped
 
         # We start the iteration at before last timestep, N
-        print "Running particle tracking algorithm. This may take a while..."
+        print ("Running particle tracking algorithm. This may take a while...")
 
         for ifile, file in enumerate(self.file_array[-2::-1]):
             # First do a binary search on particles,
@@ -194,7 +194,7 @@ class ParticleTracking():
             if ((ifile != 0) and (ifile%self.write_period==0 or \
                             ifile==len(self.file_array)-2)):
                 # Call the file writing object to dump data in the hdf5 file
-                print "Writing into file..."
+                print ("Writing into file...")
                 close = ( ifile == len(self.file_array)-2 )
 
                 self.FW.write(self.particle_buffer, np.shape(self.file_array),

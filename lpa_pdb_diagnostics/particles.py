@@ -16,9 +16,9 @@ import pdb
 try:
     import pandas as pd
 except ImportError:
-    print "If you wish to use pandas to manipulate your data,\
+    print ("If you wish to use pandas to manipulate your data,\
     please install the module follwing the instruction on this \
-    website http://pandas.pydata.org/pandas-docs/stable/install.html"
+    website http://pandas.pydata.org/pandas-docs/stable/install.html")
     pass
 
 class ParticleInstant():
@@ -45,8 +45,8 @@ class ParticleInstant():
 
         """
 
-        print "** Processing ** Particles: Initialisation of "\
-                +str(filename)+" **"
+        print ("** Processing ** Particles: Initialisation of "\
+                +str(filename)+" **")
 
 
         self.quantities = quantities
@@ -290,7 +290,7 @@ class ParticleInstant():
             return self.filterwithIndexList( indexList )
 
         except ValueError:
-            print "No particles are detected"
+            print ("No particles are detected")
             return
 
     def filterwithIndexList(self, indexList):
@@ -367,6 +367,91 @@ def beam_charge( w ):
         charge = np.NaN
 
     return charge
+
+def beam_spectrogram(frame_num, gamma, w, x, lwrite = False,
+                    bin_num = None, density = False,
+                    lsavefig = True, leg = None, l_plot=True ):
+    """
+    Returns a 2D histogram plots of E vs x,y or z. Can be used as well if no
+    species dependencies
+
+    Parameters:
+    -----------
+    frame_num: int
+        frame_num for writing purpose
+
+    gamma: 2D numpy array
+        gamma of particles for different species
+
+    w: 2D numpy array
+        Weight of particles for different species
+
+    x: 2D numpy array
+        direction to be taken, x, y or z.
+
+    bin_size: int
+        in MeV, default value 0.5 MeV
+
+    density: boolean
+        whether to normalize the spectrum, default value False
+
+    lsavefig: boolean
+        flag to save figure or not
+
+    leg: 1D string list
+        legend for the figure
+
+    Returns:
+    --------
+    H: 2d histogram
+        binned energy in MeV
+
+    dQdE: float value
+        charge in Coulomb/MeV
+    """
+    Hnorm = []
+
+    try:
+        en = gamma2Energy(gamma)
+
+        if bin_num is None:
+            num_bins_x = int(50e6*(np.max(x) \
+                                - np.min(x)))
+            num_bins_en = int((20*np.max(en) \
+                                - np.min(en)))
+            bins_array = (num_bins_x, num_bins_en)
+        else:
+            bins_array = bin_num
+
+        H, xedges, yedges = np.histogram2d( en, x,
+                                              bins = bins_array,
+                                              weights = w, normed = True)
+        #H = np.rot90(H)
+        H = np.flipud(H)
+        Hnorm = np.ma.masked_where( H == 0, H )
+        #Hnorm = Hmasked/np.amax(np.amax( Hmasked ))
+
+        extent = np.array([ np.min(yedges)*1e6, np.max(yedges)*1e6 ,
+                                np.min(xedges), np.max(xedges)])
+
+        if l_plot:
+            fig, ax = plt.subplots( figsize = (3,3))
+            cm_peak = plt.cm.get_cmap('RdBu')
+            sc_peak = ax.imshow(Hnorm, extent = extent, interpolation = 'nearest',
+                                cmap = cm_peak, aspect='auto')
+            cbar = fig.colorbar(sc_peak, orientation='vertical')
+            ax.set_xlabel(r"$\mathrm{x\,(\mu m)}$")
+            ax.set_ylabel(r"$\mathrm{E_k\,(MeV)}$")
+            ax.xaxis.set_tick_params(width=2, length = 8)
+            ax.yaxis.set_tick_params(width=2, length = 8)
+            font = {'family':'sans-serif'}
+            plt.rc('font', **font)
+
+    except ValueError:
+        print ("Check if the particle arrays are empty.")
+        Hnorm.append(None)
+
+    return Hnorm
 
 def beam_spectrum( frame_num, gamma, w, lwrite = False,
                     bin_size = 0.5, density = False, lsavefig = True,
@@ -483,7 +568,7 @@ def beam_spectrum( frame_num, gamma, w, lwrite = False,
             fig.savefig( config.result_path + "beam_spectrum_%d.png" %frame_num)
 
     except ValueError:
-        print "Check if the particle arrays are empty."
+        print ("Check if the particle arrays are empty.")
         energy = None
         dQdE = None
 
@@ -603,7 +688,7 @@ def beam_peak( energy, dQdE, peak_width = 20.0, epsilon = 1e-4, thres =0.3,
         dQdE_at_peak = dQdE[peakInd]
 
     else:
-        print "No peak is found"
+        print ("No peak is found")
         peakInd = None
         energy_at_peak = None
         dQdE_at_peak = None
@@ -708,7 +793,7 @@ def beam_energy_spread( energy, dQdE, lfwhm = True, peak = None ):
             deltaEE = deltaE/Epeak
 
     except ZeroDivisionError:
-        print "Error in energy spread calculation"
+        print ("Error in energy spread calculation")
         deltaE = np.NaN
         deltaEE = np.NaN
 
@@ -948,7 +1033,7 @@ def sorted_by_quantity_beam_property ( frame_num, chosen_particles, qdict,
                             sp_name, frame_num ))
 
         if not lplot and lsavefig:
-            print "Sorry, no plot, no save."
+            print ("Sorry, no plot, no save.")
 
     except ValueError:
         pass
@@ -1015,8 +1100,8 @@ def sorted_by_gamma_beam_emittance ( frame_num, chosen_particles, qdict,
     """
 
     try:
-        print config.bcolors.WARNING + "Warning: This method is deprecated, " +\
-              "please use sorted_by_quantity_beam_property" + config.bcolors.ENDC
+        print (config.bcolors.WARNING + "Warning: This method is deprecated, " +\
+              "please use sorted_by_quantity_beam_property" + config.bcolors.ENDC)
         if quantity_to_analyze is None:
             quantity_to_analyze = "gamma"
 
@@ -1086,7 +1171,7 @@ def sorted_by_gamma_beam_emittance ( frame_num, chosen_particles, qdict,
                             %(quantity_to_analyze, direction, sp_name, frame_num ))
 
         if not lplot and lsavefig:
-            print "Sorry, no plot, no save."
+            print ("Sorry, no plot, no save.")
 
     except ValueError:
         pass
@@ -1138,8 +1223,8 @@ def beam_divergence( chosen_particles, qdict, direction ):
         div = wstd( np.arctan2(ux, uz), w )
 
     except ValueError:
-        print "Beam divergence: Analysis is not performed because" + \
-              "no particles are detected."
+        print ("Beam divergence: Analysis is not performed because" + \
+              "no particles are detected.")
         div = np.NaN
 
     # Return the result
@@ -1196,13 +1281,13 @@ def apparent_beam_size( chosen_particles, qdict, direction ):
         sigma = weighted_emittance/theta
 
     except ValueError:
-        print "Beam apparent size: Analysis is not performed because" + \
-              "no particles are detected."
+        print ("Beam apparent size: Analysis is not performed because" + \
+              "no particles are detected.")
         sigma = np.NaN
 
     except ZeroDivisionError:
-        print "Beam apparent size: Analysis is not performed because " + \
-              "no particles are detected."
+        print ("Beam apparent size: Analysis is not performed because " + \
+              "no particles are detected.")
         sigma = np.NaN
 
     # Return the result
@@ -1423,19 +1508,19 @@ def beam_emittance( frame_num, chosen_particles, qdict, direction, species = Non
                                  %( direction, sp_name, frame_num ))
 
             if not lplot and lsavefig:
-                print "Sorry, no plot, no save."
+                print ("Sorry, no plot, no save.")
 
         if math.isnan(weighted_emittance):
             weighted_emittance = np.NaN
 
     except ValueError:
-        print "Beam emittance: Analysis is not performed because " + \
-              "no particles are detected."
+        print ("Beam emittance: Analysis is not performed because " + \
+              "no particles are detected.")
         weighted_emittance = np.NaN
 
     except ZeroDivisionError:
-        print "Beam emittance: Analysis is not performed because " + \
-              "no particles are detected."
+        print ("Beam emittance: Analysis is not performed because " + \
+              "no particles are detected.")
         weighted_emittance = np.NaN
 
     return ( weighted_emittance )

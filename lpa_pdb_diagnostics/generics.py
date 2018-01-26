@@ -728,7 +728,7 @@ def bigPicture( frame_num, p_z, p_gamma, p_w, f_z, f_wake, f_laser,
 
     except ValueError:
         reduction_factor = 0
-        print "No particles are detected for frame %d" %frame_num
+        print ("No particles are detected for frame %d" %frame_num)
 
     ax.plot( f_z, f_wake, color="red" )
     ax.plot( f_z, f_laser, color = "#87CEEB" )

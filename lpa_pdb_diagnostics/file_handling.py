@@ -34,8 +34,8 @@ class FileWriting():
         self.groups = groups
         self.create_file( file_name )
 
-        print "A file named %s.hdf5 in %s is created." %(file_name,
-              config.result_path)
+        print ("A file named %s.hdf5 in %s is created." %(file_name,
+              config.result_path))
 
     def create_file( self, file_name ):
         """
@@ -124,7 +124,7 @@ class FileWriting():
 
         if close:
             self.file_object.close()
-            print "** Writing is done **"
+            print ("** Writing is done **")
 
 class FileReading():
 

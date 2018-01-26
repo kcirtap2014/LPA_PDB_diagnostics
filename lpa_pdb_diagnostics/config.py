@@ -4,7 +4,7 @@ import os
 result_path = os.getcwd() + "/result/"
 
 if not os.path.exists( result_path ):
-    print "Result path %s is created" %result_path
+    print ("Result path %s is created" %result_path)
     os.makedirs( result_path )
 
 class bcolors:

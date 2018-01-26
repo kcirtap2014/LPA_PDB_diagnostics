@@ -12,9 +12,9 @@ To view the definition of each function, use docstring.
 """
 
 from .config import *
-from .particles import *
-from .fields import *
 from .file_handling import *
 from .generics import *
+from .particles import *
+from .fields import *
 from .particle_tracking import ParticleTracking
 from .cubehelix import cmap
