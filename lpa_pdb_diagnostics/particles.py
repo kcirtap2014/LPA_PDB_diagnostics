@@ -210,7 +210,7 @@ class ParticleInstant():
 
         return self.qdict
 
-    def select( self, gamma_threshold = None, ROI = None ):
+    def select( self, gamma_threshold = None, theta_threshold = None, ROI = None ):
         """
         This method selects the particles according to the energy and
         region of interest
@@ -236,8 +236,10 @@ class ParticleInstant():
         try:
             indexListGamma = set()
             indexListROI = set()
+            indexListTheta = set()
             n_array = np.arange(len(self.w))
-
+            indexList = set(list(n_array))
+            print 'index_total', len(indexList)
             if gamma_threshold:
                 #Test the gamma_threshold structure
                 countValidAgg = 0
@@ -258,6 +260,33 @@ class ParticleInstant():
                     np.logical_and(self.gamma>gamma_threshold[0],
                     self.gamma<gamma_threshold[1]), n_array))
 
+                indexList = indexList.intersection(indexListGamma)
+            print "gamma", len(indexListGamma)
+            if theta_threshold:
+                # Test the theta_threshold structure, dictionary with direction
+                # as key
+
+                countValidAgg = 0
+                for key, value in theta_threshold.items():
+                    if len(value)!=2:
+                        raise "theta_threshold should be a 1D array of size 2."
+
+                    for agg in value:
+                        if agg is not None:
+                            countValidAgg+=1
+
+                    if countValidAgg == 1:
+                        if key == "x":
+                            theta = np.absolute(self.ux/self.uz)
+
+                        elif key == "y":
+                            theta = np.absolute(self.uy/self.uz)
+
+                        indexListTheta = set( np.compress(
+                                        theta <= theta_threshold[key][1],
+                                        n_array) )
+                indexList = indexList.intersection(indexListTheta)
+            print "Theta", len(indexListTheta), len(indexList)
             if ROI:
                 #Test the ROI structure
                 countValidAgg = 0
@@ -278,15 +307,10 @@ class ParticleInstant():
                         np.logical_and(self.z>ROI[0],
                         self.z<ROI[1]), n_array))
 
-            if gamma_threshold and ROI:
-                indexList = list(indexListGamma.intersection(indexListROI))
-            elif gamma_threshold:
-                indexList = list(indexListGamma)
-            elif ROI:
-                indexList = list(indexListROI)
-            else:
-                indexList = list(n_array)
+                indexList = indexList.intersection(indexListROI)
 
+            indexList = list(indexList)
+            print "all", len(indexList)
             return self.filterwithIndexList( indexList )
 
         except ValueError:
